@@ -1,17 +1,28 @@
 #include "flight_control.hpp"
 
+//モータPWM出力Pinのアサイン
+//Motor PWM Pin
 const int pwmFL = 7;
 const int pwmFR = 1;
 const int pwmRL = 12;
 const int pwmRR = 42;
 
+//モータPWM周波数 
+//Motor PWM Frequency
 const int freq = 150000;
+
+//PWM分解能
+//PWM Resolution
+const int resolution = 8;
+
+//モータチャンネルのアサイン
+//Motor Channel
 const int FL_motor = 1;
 const int FR_motor = 2;
 const int RL_motor = 3;
 const int RR_motor = 4;
-const int resolution = 8;
 
+//制御周期
 //Control period
 const float Control_period = 0.0025f;//400Hz
 
@@ -46,8 +57,6 @@ const float Tht_eta = 0.125f;
 //Times
 volatile float Elapsed_time=0.0f;
 volatile float Old_Elapsed_time=0.0f;
-
-//
 volatile uint32_t S_time=0,E_time=0,D_time=0,S_time2=0,E_time2=0,Dt_time=0;
 
 //Counter
@@ -56,16 +65,32 @@ uint16_t RateControlCounter=0;
 uint16_t BiasCounter=0;
 uint16_t LedBlinkCounter=0;
 
-//Control 
+//Motor Duty 
 volatile float FR_duty=0.0f, FL_duty=0.0f, RR_duty=0.0f, RL_duty=0.0f;
-volatile float P_com=0.0f, Q_com=0.0f, R_com=0.0f;
-volatile float Phi_com=0.0f, Tht_com=0.0f, Psi_com=0.0f;
-volatile float T_ref=0.0f;
-//volatile float Pbias=0.0f, Qbias=0.0f, Rbias=0.0f;
-volatile float Phi_bias=0.0f, Theta_bias=0.0f, Psi_bias=0.0f;  
-volatile float Phi_ref=0.0f, Theta_ref=0.0f, Psi_ref=0.0f;
-volatile float Elevator_center=0.0f, Aileron_center=0.0f, Rudder_center=0.0f;
+
+//制御目標
+//PID Control reference
+//角速度目標値
+//Rate reference
 volatile float Pref=0.0f, Qref=0.0f, Rref=0.0f;
+//角度目標値
+//Angle reference
+volatile float Phi_ref=0.0f, Theta_ref=0.0f, Psi_ref=0.0f;
+//舵角指令値
+//Commanad
+//スロットル指令値
+//Throttle
+volatile float T_ref=0.0f;
+//角速度指令値
+//Rate command
+volatile float P_com=0.0f, Q_com=0.0f, R_com=0.0f;
+//角度指令値
+//Angle comannd
+volatile float Phi_com=0.0f, Tht_com=0.0f, Psi_com=0.0f;
+
+//バイアス・トリム
+volatile float Phi_bias=0.0f, Theta_bias=0.0f, Psi_bias=0.0f;  
+volatile float Elevator_center=0.0f, Aileron_center=0.0f, Rudder_center=0.0f;
 volatile float Phi_trim   =  0.8f*PI/180.0f;
 volatile float Theta_trim = -0.2f*PI/180.0f;
 volatile float Psi_trim   =  0.0f;
@@ -98,7 +123,9 @@ PID r_pid;
 PID phi_pid;
 PID theta_pid;
 PID psi_pid;
+CRGB leds[NUM_LEDS];
 
+//Function declaration
 void init_pwm();
 void control_init();
 void variable_init(void);
@@ -119,7 +146,6 @@ void float2byte(float x, uint8_t* dst);
 void append_data(uint8_t* data , uint8_t* newdata, uint8_t index, uint8_t len);
 void data2log(uint8_t* data_list, float add_data, uint8_t index);
 
-CRGB leds[NUM_LEDS];
 
 hw_timer_t * timer = NULL;
 void IRAM_ATTR onTimer() 
