@@ -389,17 +389,11 @@ void get_command(void)
   //if(OverG_flag == 1){
   //  T_ref = 0.0;
   //}
+
   //Throttle curve conversion　スロットルカーブ補正
   float thlo = Stick[THROTTLE];
   if (thlo>1.0f) thlo = 1.0f;
   if (thlo<0.05f) thlo = 0.0f;
-
-  //T_ref = (3.27f*thlo -5.31f*thlo*thlo + 3.04f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  //T_ref = (2.92f*thlo -4.90f*thlo*thlo + 2.88f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  //T_ref = (3.01f*thlo -5.20f*thlo*thlo + 3.14f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  //T_ref = (3.46f*thlo -5.74f*thlo*thlo + 3.23f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  //T_ref = (3.42f*thlo -6.00f*thlo*thlo + 3.58f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  //T_ref = (3.32f*thlo -5.40f*thlo*thlo + 3.03f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
   //T_ref = (3.07f*thlo -3.88f*thlo*thlo + 1.75f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
   T_ref = thlo*BATTERY_VOLTAGE;
 
@@ -552,8 +546,7 @@ void rate_control(void)
     }
   }
   else{
-    motor_stop();
-    
+    motor_stop();    
   } 
 }
 
@@ -570,6 +563,7 @@ void angle_control(void)
   //PID Control
   if ((T_ref/BATTERY_VOLTAGE < Motor_on_duty_threshold))//Angle_control_on_duty_threshold))
   {
+    //Initialize
     Pref=0.0f;
     Qref=0.0f;
     phi_err = 0.0f;
@@ -590,11 +584,9 @@ void angle_control(void)
     Phi_bias   = 0;
     Theta_bias = 0;
     /////////////////////////////////////
-  
   }
   else
   {
-    
     //Flip
     if (0)// (BtnA_on_flag == 1) || (Flip_flag == 1))
     { 
@@ -620,10 +612,9 @@ void angle_control(void)
       Flip_counter++;
       #endif  
     }
-    
-    //Angle Control
     else
     {
+      //Angle Control
       Led_color = RED;
       //Get Roll and Pitch angle ref 
       Phi_ref   = 0.5f * PI * (Phi_com - Aileron_center);
