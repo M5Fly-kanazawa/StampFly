@@ -360,7 +360,7 @@ void get_command(void)
   //Throttle curve conversion　スロットルカーブ補正
   float thlo = Stick[THROTTLE];
   if (thlo>1.0f) thlo = 1.0f;
-  if (thlo<0.02f) thlo = 0.0f;
+  if (thlo<0.05f) thlo = 0.0f;
 
   //T_ref = (3.27f*thlo -5.31f*thlo*thlo + 3.04f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
   //T_ref = (2.92f*thlo -4.90f*thlo*thlo + 2.88f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
