@@ -119,9 +119,6 @@ void imu_init(void)
 
 }
 
-
-
-
 void test_rangefinder(void)
 {
 }

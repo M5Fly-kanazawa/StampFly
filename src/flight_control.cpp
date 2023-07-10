@@ -368,7 +368,8 @@ void get_command(void)
   //T_ref = (3.46f*thlo -5.74f*thlo*thlo + 3.23f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
   //T_ref = (3.42f*thlo -6.00f*thlo*thlo + 3.58f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
   //T_ref = (3.32f*thlo -5.40f*thlo*thlo + 3.03f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  T_ref = (3.07f*thlo -3.88f*thlo*thlo + 1.75f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
+  //T_ref = (3.07f*thlo -3.88f*thlo*thlo + 1.75f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
+  T_ref = thlo*BATTERY_VOLTAGE;
 
   #ifdef MINIJOYC
   Phi_com = 0.6*Stick[AILERON];
@@ -616,7 +617,6 @@ void set_duty_fl(float duty){ledcWrite(FL_motor, (uint32_t)(255*duty));}
 void set_duty_rr(float duty){ledcWrite(RR_motor, (uint32_t)(255*duty));}
 void set_duty_rl(float duty){ledcWrite(RL_motor, (uint32_t)(255*duty));}
 
-
 void m5_atom_led(CRGB p, uint8_t state)
 {
   if (state ==1) leds[0]=p;
@@ -625,7 +625,6 @@ void m5_atom_led(CRGB p, uint8_t state)
   FastLED.show();
   return;
 }
-
 
 void init_pwm(void)
 {
@@ -638,7 +637,6 @@ void init_pwm(void)
   ledcAttachPin(pwmRL, RL_motor);
   ledcAttachPin(pwmRR, RR_motor);
 }
-
 
 void telemetry(void)
 {
