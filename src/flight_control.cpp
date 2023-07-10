@@ -146,40 +146,46 @@ void float2byte(float x, uint8_t* dst);
 void append_data(uint8_t* data , uint8_t* newdata, uint8_t index, uint8_t len);
 void data2log(uint8_t* data_list, float add_data, uint8_t index);
 
-
+//割り込み関数
+//Intrupt function
 hw_timer_t * timer = NULL;
 void IRAM_ATTR onTimer() 
 {
   Loop_flag = 1;
 }
 
+//Initialize Multi copter
 void init_copter(void)
 {
+  //Initialize Mode
   Mode = INIT_MODE;
 
-  //LED initialaze
-  FastLED.addLeds<WS2812, PIN_LED, GRB>(leds, NUM_LEDS);
-  leds[0]=0;
-  FastLED.show();
-
+  //Initialize Serial communication
   USBSerial.begin(115200);
   delay(2000);
   USBSerial.printf("Start StampS3FPV!\r\n");
   
+  //Initialize PWM
   init_pwm();
+
+  //Initilize Radio control
   rc_init();
-  leds[0]=WHITE;
-  FastLED.show();
   sensor_init();
   control_init();
 
   //割り込み設定
+  //Initialize intrupt
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
   timerAlarmWrite(timer, 2500, true);
   timerAlarmEnable(timer);
-  
-  while(!rc_isconnected());
+
+  //Initialaze LED function
+  FastLED.addLeds<WS2812, PIN_LED, GRB>(leds, NUM_LEDS);
+  leds[0]=WHITE;
+  FastLED.show();
+
+  //while(!rc_isconnected());
   //Mode = AVERAGE_MODE;
 }
 
