@@ -646,7 +646,8 @@ void init_pwm(void)
 
 uint8_t get_arming_button(void)
 {
-  static uint8_t chatta=0,state=0;
+  static int8_t chatta=0;
+  uint8_t state;
   if( (int)Stick[BUTTON] == 1 )
   { 
     chatta++;
@@ -655,10 +656,15 @@ uint8_t get_arming_button(void)
       state=1;
     }
   }
-  else 
+  else
   {
-    chatta=0;
-    state=0;
+    chatta--;
+    if(chatta<-10)
+    {    
+      chatta=-10;
+      state=0;
+    }
+    
   }
   return state;
 }
