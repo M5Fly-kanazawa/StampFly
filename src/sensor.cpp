@@ -26,7 +26,7 @@ float Acc_norm=0.0f;
 //quat_t Quat;
 float Over_g=0.0f, Over_rate=0.0f;
 uint8_t OverG_flag = 0;
-volatile uint8_t Power_flag = 0; 
+volatile uint8_t Under_voltage_flag = 0; 
 
 uint8_t init_i2c()
 {
@@ -257,17 +257,16 @@ void sensor_read(void)
     if (Over_g == 0.0)Over_g = acc_norm;
   }
   #endif
-  
-  #if 1
+
+  //Battery voltage check 
   Voltage = ina3221.getVoltage(INA3221_CH2);
   filterd_v = voltage_filter.update(Voltage);
 
-  if(Power_flag != POWER_FLG_MAX){
-    if (filterd_v < POWER_LIMIT) Power_flag ++;
-    else Power_flag = 0;
-    if ( Power_flag > POWER_FLG_MAX) Power_flag = POWER_FLG_MAX;
+  if(Under_voltage_flag != UNDER_VOLTAGE_COUNT){
+    if (filterd_v < POWER_LIMIT) Under_voltage_flag ++;
+    else Under_voltage_flag = 0;
+    if ( Under_voltage_flag > UNDER_VOLTAGE_COUNT) Under_voltage_flag = UNDER_VOLTAGE_COUNT;
   }
-  #endif
 
   float Roll_angle = Roll_angle;
   float tht = Pitch_angle;

@@ -25,11 +25,11 @@
 #define INIT_MODE 0
 #define AVERAGE_MODE 1
 #define FLIGHT_MODE 2
-#define STAY_MODE 3
+#define PARKING_MODE 3
 #define LOG_MODE 4
 
 #define POWER_LIMIT 3.48
-#define POWER_FLG_MAX 20
+#define UNDER_VOLTAGE_COUNT 100
 
 #define ANGLECONTROL 0
 #define RATECONTROL 1
@@ -40,9 +40,5 @@ void loop_400Hz(void);
 
 //グローバル変数
 extern uint8_t Mode;
-
-//extern volatile uint8_t LockMode;
-//extern volatile uint8_t Logoutputflag;
-//extern volatile uint32_t S_time, E_time, D_time, S_time2, E_time2, D_time2;
 
 #endif

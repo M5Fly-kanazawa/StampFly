@@ -39,10 +39,11 @@ extern float Acc_norm;
 extern quat_t Quat;
 extern float Over_g, Over_rate;
 extern uint8_t OverG_flag;
-extern volatile uint8_t Power_flag;
+extern volatile uint8_t Under_voltage_flag;
 
 void sensor_init(void);
 void sensor_read(void);
+void sensor_reset_offset(void);
 void sensor_calc_offset_avarage(void);
 void ahrs_reset(void);
 void tof_init(void);

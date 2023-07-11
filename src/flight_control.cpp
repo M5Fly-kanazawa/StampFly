@@ -62,7 +62,7 @@ volatile uint32_t S_time=0,E_time=0,D_time=0,S_time2=0,E_time2=0,Dt_time=0;
 //Counter
 uint8_t AngleControlCounter=0;
 uint16_t RateControlCounter=0;
-uint16_t BiasCounter=0;
+uint16_t OffsetCounter=0;
 uint16_t LedBlinkCounter=0;
 
 //Motor Duty 
@@ -133,6 +133,7 @@ void rate_control(void);
 void output_data(void);
 void output_sensor_raw_data(void);
 void motor_stop(void);
+void led_drive(void);
 uint8_t lock_com(void);
 void set_duty_fr(float duty);
 void set_duty_fl(float duty);
@@ -181,10 +182,6 @@ void init_copter(void)
   timerAttachInterrupt(timer, &onTimer, true);
   timerAlarmWrite(timer, 2500, true);
   timerAlarmEnable(timer);
-
-
-  //while(!rc_isconnected());
-  //Mode = AVERAGE_MODE;
 }
 
 //Main loop
@@ -192,16 +189,19 @@ void loop_400Hz(void)
 {
   static uint8_t led=1;
 
+  //割り込みにより400Hzで以降のコードが実行
   while(Loop_flag==0);
+  Loop_flag = 0;
+
   E_time = micros();
   Old_Elapsed_time = Elapsed_time;
   Elapsed_time = 1e-6*(E_time - S_time);
-  Loop_flag = 0;
   Timevalue+=0.0025f;
+  
+  led_drive();
 
   //Read Sensor Value
   sensor_read();
-
 
   //Begin Mode select
   if (Mode == INIT_MODE)
@@ -213,24 +213,22 @@ void loop_400Hz(void)
       Roll_angle_offset = 0.0f;
       Pitch_angle_offset = 0.0f;
       Yaw_angle_offset = 0.0f;
+      sensor_reset_offset();
       Mode = AVERAGE_MODE;
       return;
   }
   else if (Mode == AVERAGE_MODE)
   {
     motor_stop();
-    m5_atom_led(PERPLE, 1);
-
     //Gyro offset Estimate
-    if (BiasCounter < AVERAGENUM)
+    if (OffsetCounter < AVERAGENUM)
     {
-      //Sensor Read
       sensor_calc_offset_avarage();
-      BiasCounter++;
+      OffsetCounter++;
       return;
     }
     //Mode change
-    Mode = STAY_MODE;
+    Mode = PARKING_MODE;
     S_time = micros();
     return;
   }
@@ -241,10 +239,6 @@ void loop_400Hz(void)
       if(lock_com()==1)
       {
         LockMode=3;//Disenable Flight
-        led=0;
-        if(Power_flag==0)m5_atom_led(GREEN,led);
-        else m5_atom_led(POWEROFFCOLOR,led);
-        //if( (Elapsed_time - Old_Elapsed_time)>0.00251) m5_atom_led(0xffffff,led);
         return;
       }
       //Goto Flight
@@ -253,14 +247,10 @@ void loop_400Hz(void)
     {
       if(lock_com()==0){
         LockMode=0;
-        Mode=STAY_MODE;
+        Mode=PARKING_MODE;
       }
       return;
     }
-    //LED Blink
-    if (Power_flag == 0) m5_atom_led(Led_color, led);
-    else m5_atom_led(POWEROFFCOLOR,led);
-    led=1;
 
     //Get command
     get_command();
@@ -271,29 +261,11 @@ void loop_400Hz(void)
     //Rate Control
     rate_control();
   }
-  else if(Mode == STAY_MODE)
+  else if(Mode == PARKING_MODE)
   {
     motor_stop();
-    //Befor takeoff Voltage Low Check
-    if(Voltage<3.7)
-    {
-      Power_flag = POWER_FLG_MAX;
-    }
     OverG_flag = 0;
-    Angle_control_flag = 0;
-    if(LedBlinkCounter<10){
-      if (Power_flag == 0) m5_atom_led(GREEN, 1);
-      else m5_atom_led(POWEROFFCOLOR,1);
-      LedBlinkCounter++;
-    }
-    else if(LedBlinkCounter<100)
-    {
-      if (Power_flag == 0) m5_atom_led(GREEN, 0);
-      else m5_atom_led(POWEROFFCOLOR,0);
-      LedBlinkCounter++;
-    }
-    else LedBlinkCounter=0;
-      
+    Angle_control_flag = 0;      
     if(LockMode==0)
     {
       if( lock_com()==1)
@@ -321,9 +293,46 @@ void loop_400Hz(void)
 
   D_time = micros();
   if(Telem_cnt == 1)Dt_time = D_time - E_time;
-  //End Mode select
+
   //End of Loop_400Hz function
 }
+
+void led_drive(void)
+{
+  if (Mode == AVERAGE_MODE)
+  {
+    m5_atom_led(PERPLE, 1);
+  }
+  else if(Mode == FLIGHT_MODE)
+  {
+    if(Control_mode == ANGLECONTROL)
+    {
+      if(Flip_flag==0)Led_color=0xffff00;
+      else Led_color = 0xFF9933;
+    }
+    else Led_color = 0xDC669B;
+
+    if (Under_voltage_flag < UNDER_VOLTAGE_COUNT) m5_atom_led(Led_color, 1);
+    else m5_atom_led(POWEROFFCOLOR,1);
+  }
+  else if (Mode == PARKING_MODE)
+  {
+    if(LedBlinkCounter<10){
+      if (Under_voltage_flag < UNDER_VOLTAGE_COUNT) m5_atom_led(GREEN, 1);
+      else m5_atom_led(POWEROFFCOLOR,1);
+      LedBlinkCounter++;
+    }
+    else if(LedBlinkCounter<100)
+    {
+      if (Under_voltage_flag <UNDER_VOLTAGE_COUNT) m5_atom_led(GREEN, 0);
+      else m5_atom_led(POWEROFFCOLOR,0);
+      LedBlinkCounter++;
+    }
+    else LedBlinkCounter=0;
+  }
+}
+
+
 
 ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////
@@ -444,14 +453,7 @@ void rate_control(void)
   if(rc_isconnected())
   {
     if(Thrust_command/BATTERY_VOLTAGE < Motor_on_duty_threshold)
-    {
-      if(Control_mode == ANGLECONTROL)
-      {
-        if(Flip_flag==0)Led_color=0xffff00;
-        else Led_color = 0xFF9933;
-      }
-      else Led_color = 0xDC669B;
-      
+    {      
       FR_duty = 0.0;
       FL_duty = 0.0;
       RR_duty = 0.0;
@@ -526,7 +528,7 @@ void rate_control(void)
         motor_stop();
         OverG_flag=0;
         LockMode = 0;
-        Mode = STAY_MODE;
+        Mode = PARKING_MODE;
       }
       //USBSerial.printf("%12.5f %12.5f %12.5f %12.5f\n",FR_duty, FL_duty, RR_duty, RL_duty);
     }
