@@ -160,6 +160,11 @@ void init_copter(void)
   //Initialize Mode
   Mode = INIT_MODE;
 
+  //Initialaze LED function
+  FastLED.addLeds<WS2812, PIN_LED, GRB>(leds, NUM_LEDS);
+  leds[0]=WHITE;
+  FastLED.show();
+
   //Initialize Serial communication
   USBSerial.begin(115200);
   delay(2000);
@@ -180,10 +185,6 @@ void init_copter(void)
   timerAlarmWrite(timer, 2500, true);
   timerAlarmEnable(timer);
 
-  //Initialaze LED function
-  FastLED.addLeds<WS2812, PIN_LED, GRB>(leds, NUM_LEDS);
-  leds[0]=WHITE;
-  FastLED.show();
 
   //while(!rc_isconnected());
   //Mode = AVERAGE_MODE;
@@ -391,7 +392,9 @@ void get_command(void)
   //}
 
   //Throttle curve conversion　スロットルカーブ補正
+  float throttle_limit = 0.7;
   float thlo = Stick[THROTTLE];
+  thlo = thlo/throttle_limit;
   if (thlo>1.0f) thlo = 1.0f;
   if (thlo<0.05f) thlo = 0.0f;
   //T_ref = (3.07f*thlo -3.88f*thlo*thlo + 1.75f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
