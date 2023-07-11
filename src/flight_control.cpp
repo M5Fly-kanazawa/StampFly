@@ -134,7 +134,8 @@ void output_data(void);
 void output_sensor_raw_data(void);
 void motor_stop(void);
 void led_drive(void);
-uint8_t lock_com(void);
+uint8_t judge_mode_change(void);
+uint8_t get_arming_button(void);
 void set_duty_fr(float duty);
 void set_duty_fl(float duty);
 void set_duty_rr(float duty);
@@ -234,24 +235,9 @@ void loop_400Hz(void)
   }
   else if( Mode == FLIGHT_MODE)
   {
-    if(LockMode==2)
-    {
-      if(lock_com()==1)
-      {
-        LockMode=3;//Disenable Flight
-        return;
-      }
-      //Goto Flight
-    }
-    else if(LockMode==3)
-    {
-      if(lock_com()==0){
-        LockMode=0;
-        Mode=PARKING_MODE;
-      }
-      return;
-    }
-
+    //Judge Mode change
+    if (judge_mode_change() == 1) Mode = PARKING_MODE;
+    
     //Get command
     get_command();
 
@@ -260,30 +246,18 @@ void loop_400Hz(void)
 
     //Rate Control
     rate_control();
+
   }
   else if(Mode == PARKING_MODE)
   {
+    //Judge Mode change
+    if( judge_mode_change() == 1)Mode = FLIGHT_MODE;
+
+    //Parking
     motor_stop();
     OverG_flag = 0;
-    Angle_control_flag = 0;      
-    if(LockMode==0)
-    {
-      if( lock_com()==1)
-      {
-        LockMode=1;
-        return;
-      }
-      //Wait output log
-    }
-    else if(LockMode==1)
-    {
-      if(lock_com()==0)
-      {
-        LockMode=2;//Enable Flight
-        Mode=FLIGHT_MODE;
-      }
-      return;
-    }
+    Angle_control_flag = 0;
+    
   }
 
   //Telemetry
@@ -295,6 +269,27 @@ void loop_400Hz(void)
   if(Telem_cnt == 1)Dt_time = D_time - E_time;
 
   //End of Loop_400Hz function
+}
+
+uint8_t judge_mode_change(void)
+{
+  //Ariming Button が押されて離されたかを確認
+  if(LockMode == 0)
+  {
+    if( get_arming_button()==1)
+    {
+      LockMode = 1;
+    }
+  }
+  else
+  {
+    if( get_arming_button()==0)
+    {
+      LockMode = 0;
+    }
+    return 1;
+  }
+  return 0;
 }
 
 void led_drive(void)
@@ -649,6 +644,25 @@ void init_pwm(void)
   ledcAttachPin(pwmRearRight, RearRight_motor);
 }
 
+uint8_t get_arming_button(void)
+{
+  static uint8_t chatta=0,state=0;
+  if( (int)Stick[BUTTON] == 1 )
+  { 
+    chatta++;
+    if(chatta>10){
+      chatta=10;
+      state=1;
+    }
+  }
+  else 
+  {
+    chatta=0;
+    state=0;
+  }
+  return state;
+}
+
 void telemetry(void)
 {
   //Telemetry
@@ -911,25 +925,6 @@ void append_data(uint8_t* data , uint8_t* newdata, uint8_t index, uint8_t len)
   {
     data[i]=newdata[i-index];
   }
-}
-
-uint8_t lock_com(void)
-{
-  static uint8_t chatta=0,state=0;
-  if( (int)Stick[BUTTON] == 1 )
-  { 
-    chatta++;
-    if(chatta>20){
-      chatta=20;
-      state=1;
-    }
-  }
-  else 
-  {
-    chatta=0;
-    state=0;
-  }
-  return state;
 }
 
 void motor_stop(void)
