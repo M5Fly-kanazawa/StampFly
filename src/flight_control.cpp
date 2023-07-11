@@ -88,8 +88,8 @@ volatile float Roll_rate_command=0.0f, Pitch_rate_command=0.0f, Yaw_rate_command
 //Angle comannd
 volatile float Roll_angle_command=0.0f, Pitch_angle_command=0.0f, Yaw_angle_command=0.0f;
 
-//バイアス・トリム
-volatile float Roll_angle_bias=0.0f, Pitch_angle_bias=0.0f, Yaw_angle_bias=0.0f;  
+//Offset
+volatile float Roll_angle_offset=0.0f, Pitch_angle_offset=0.0f, Yaw_angle_offset=0.0f;  
 volatile float Elevator_center=0.0f, Aileron_center=0.0f, Rudder_center=0.0f;
 
 //Log
@@ -210,41 +210,28 @@ void loop_400Hz(void)
       Elevator_center = 0.0f;
       Aileron_center = 0.0f;
       Rudder_center = 0.0f;
-      Pbias = 0.0f;
-      Qbias = 0.0f;
-      Rbias = 0.0f;
-      Roll_angle_bias = 0.0f;
-      Pitch_angle_bias = 0.0f;
-      Yaw_angle_bias = 0.0f;
+      Roll_angle_offset = 0.0f;
+      Pitch_angle_offset = 0.0f;
+      Yaw_angle_offset = 0.0f;
       Mode = AVERAGE_MODE;
       return;
   }
   else if (Mode == AVERAGE_MODE)
   {
     motor_stop();
-    //Gyro Bias Estimate
+    m5_atom_led(PERPLE, 1);
+
+    //Gyro offset Estimate
     if (BiasCounter < AVERAGENUM)
     {
       //Sensor Read
-      m5_atom_led(PERPLE, 1);
-      //sensor_read();
-      Pbias += Wp;
-      Qbias += Wq;
-      Rbias += Wr;
+      sensor_calc_offset_avarage();
       BiasCounter++;
       return;
     }
-    else if(BiasCounter == AVERAGENUM)
-    {
-      //Average calc
-      Pbias = Pbias/AVERAGENUM;
-      Qbias = Qbias/AVERAGENUM;
-      Rbias = Rbias/AVERAGENUM;
-
-      //Mode change
-      Mode = STAY_MODE;
-      S_time = micros();
-    }
+    //Mode change
+    Mode = STAY_MODE;
+    S_time = micros();
     return;
   }
   else if( Mode == FLIGHT_MODE)
@@ -273,7 +260,6 @@ void loop_400Hz(void)
     //LED Blink
     if (Power_flag == 0) m5_atom_led(Led_color, led);
     else m5_atom_led(POWEROFFCOLOR,led);
-    //if( (Elapsed_time - Old_Elapsed_time)>0.00251) m5_atom_led(0xffffff,led);
     led=1;
 
     //Get command
@@ -483,9 +469,9 @@ void rate_control(void)
     {
 
       //Control angle velocity
-      p_rate = Wp - Pbias;
-      q_rate = Wq - Qbias;
-      r_rate = Wr - Rbias;
+      p_rate = Roll_rate;
+      q_rate = Pitch_rate;
+      r_rate = Yaw_rate;
 
       //Get reference
       p_ref = Roll_rate_reference;
@@ -581,8 +567,8 @@ void angle_control(void)
     Aileron_center  = Roll_angle_command;
     Elevator_center = Pitch_angle_command;
 
-    Roll_angle_bias   = 0;
-    Pitch_angle_bias = 0;
+    Roll_angle_offset   = 0;
+    Pitch_angle_offset = 0;
     /////////////////////////////////////
   }
   else
@@ -625,8 +611,8 @@ void angle_control(void)
       if (Pitch_angle_reference <-(30.0f*PI/180.0f) ) Pitch_angle_reference =-30.0f*PI/180.0f;
 
       //Error
-      phi_err   = Roll_angle_reference   - (Phi   - Roll_angle_bias );
-      theta_err = Pitch_angle_reference - (Theta - Pitch_angle_bias);
+      phi_err   = Roll_angle_reference   - (Roll_angle - Roll_angle_offset );
+      theta_err = Pitch_angle_reference - (Pitch_angle - Pitch_angle_offset);
     
       //PID
       Roll_rate_reference = phi_pid.update(phi_err);
@@ -825,23 +811,23 @@ void telemetry(void)
     //2 delta Time
     data2log(senddata, 1e-6*Dt_time, index);
     index = index + 4;
-    //3 Phi
-    data2log(senddata, (Phi-Roll_angle_bias)*180/PI, index);
+    //3 Roll_angle
+    data2log(senddata, (Roll_angle-Roll_angle_offset)*180/PI, index);
     index = index + 4;
-    //4 Theta
-    data2log(senddata, (Theta-Pitch_angle_bias)*180/PI, index);
+    //4 Pitch_angle
+    data2log(senddata, (Pitch_angle-Pitch_angle_offset)*180/PI, index);
     index = index + 4;
-    //5 Psi
-    data2log(senddata, (Psi-Yaw_angle_bias)*180/PI, index);
+    //5 Yaw_angle
+    data2log(senddata, (Yaw_angle-Yaw_angle_offset)*180/PI, index);
     index = index + 4;
     //6 P
-    data2log(senddata, (Wp-Pbias)*180/PI, index);
+    data2log(senddata, (Roll_rate)*180/PI, index);
     index = index + 4;
     //7 Q
-    data2log(senddata, (Wq-Qbias)*180/PI, index);
+    data2log(senddata, (Pitch_rate)*180/PI, index);
     index = index + 4;
     //8 R
-    data2log(senddata, (Wr-Rbias)*180/PI, index);
+    data2log(senddata, (Yaw_rate)*180/PI, index);
     index = index + 4;
     //9 Roll_angle_reference
     data2log(senddata, Roll_angle_reference*180/PI, index);
@@ -866,14 +852,14 @@ void telemetry(void)
     //15 Voltage
     data2log(senddata, Voltage, index);
     index = index + 4;
-    //16 Ax
-    data2log(senddata, Ax, index);
+    //16 Accel_x_raw
+    data2log(senddata, Accel_x_raw, index);
     index = index + 4;
-    //17 Ay
-    data2log(senddata, Ay, index);
+    //17 Accel_y_raw
+    data2log(senddata, Accel_y_raw, index);
     index = index + 4;
-    //18 Az
-    data2log(senddata, Az, index);
+    //18 Accel_z_raw
+    data2log(senddata, Accel_z_raw, index);
     index = index + 4;
     //19 Acc Norm
     data2log(senddata, Acc_norm, index);

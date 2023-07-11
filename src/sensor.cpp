@@ -11,18 +11,22 @@ Filter voltage_filter;
 Adafruit_VL53L0X tof = Adafruit_VL53L0X();
 
 //Sensor data
-volatile float Ax,Ay,Az,Wp,Wq,Wr,Mx,My,Mz,Mx0,My0,Mz0,Mx_ave,My_ave,Mz_ave;
-volatile float Phi=0.0f, Theta=0.0f, Psi=0.0f;
+volatile float Roll_angle=0.0f, Pitch_angle=0.0f, Yaw_angle=0.0f;
+volatile float Roll_rate, Pitch_rate, Yaw_rate;
+volatile float Roll_rate_offset=0.0f, Pitch_rate_offset=0.0f, Yaw_rate_offset=0.0f;
+volatile float Accel_x_raw,Accel_y_raw,Accel_z_raw;
+volatile float Roll_rate_raw,Pitch_rate_raw,Yaw_rate_raw;
+volatile float Mx,My,Mz,Mx0,My0,Mz0,Mx_ave,My_ave,Mz_ave;
 volatile float Altitude = 0.0f;
 volatile float Altitude2 = 0.0f;
+volatile uint16_t Offset_counter = 0;
 
 volatile float Voltage;
 float Acc_norm=0.0f;
 //quat_t Quat;
 float Over_g=0.0f, Over_rate=0.0f;
 uint8_t OverG_flag = 0;
-volatile float Pbias=0.0f, Qbias=0.0f, Rbias=0.0f;
-volatile uint8_t Power_flag = 0;
+volatile uint8_t Power_flag = 0; 
 
 uint8_t init_i2c()
 {
@@ -119,8 +123,20 @@ void imu_init(void)
 
 }
 
-void test_rangefinder(void)
+void sensor_reset_offset(void)
 {
+  Roll_rate_offset = 0.0f;
+  Pitch_rate_offset = 0.0f;
+  Yaw_rate_offset = 0.0f;
+  Offset_counter = 0;
+}
+
+void sensor_calc_offset_avarage(void)
+{
+  Roll_rate_offset = (Offset_counter * Roll_rate_offset + Roll_rate_raw) / (Offset_counter + 1);
+  Pitch_rate_offset = (Offset_counter * Pitch_rate_offset + Pitch_rate_raw) / (Offset_counter + 1);
+  Yaw_rate_offset = (Offset_counter * Yaw_rate_offset + Yaw_rate_raw) / (Offset_counter + 1);
+  Offset_counter++;
 }
 
 void sensor_init()
@@ -213,24 +229,27 @@ void sensor_read(void)
   IMU.getAccelData(&ax, &ay, &az);
   IMU.getGyroData(&gx, &gy, &gz);
 
-  Ax = ay;
-  Ay = ax;
-  Az =-az;
-  Wp = gy*(float)DEG_TO_RAD;
-  Wq = gx*(float)DEG_TO_RAD;
-  Wr =-gz*(float)DEG_TO_RAD;
+  Accel_x_raw = ay;
+  Accel_y_raw = ax;
+  Accel_z_raw =-az;
+  Roll_rate_raw  =  gy*(float)DEG_TO_RAD;
+  Pitch_rate_raw =  gx*(float)DEG_TO_RAD;
+  Yaw_rate_raw   = -gz*(float)DEG_TO_RAD;
 
   if(Mode > AVERAGE_MODE)
   {
-    Drone_ahrs.updateIMU((Wq-Qbias)*(float)RAD_TO_DEG, (Wp-Pbias)*(float)RAD_TO_DEG, -(Wr-Rbias)*(float)RAD_TO_DEG, Ay, Ax, -Az);
-    Phi =   Drone_ahrs.getPitch()*(float)DEG_TO_RAD;
-    Theta = Drone_ahrs.getRoll()*(float)DEG_TO_RAD;
-    Psi =  -Drone_ahrs.getYaw()*(float)DEG_TO_RAD;
+    Drone_ahrs.updateIMU((Pitch_rate_raw-Pitch_rate_offset)*(float)RAD_TO_DEG, (Roll_rate_raw-Roll_rate_offset)*(float)RAD_TO_DEG, -(Yaw_rate_raw-Yaw_rate_offset)*(float)RAD_TO_DEG, Accel_y_raw, Accel_x_raw, -Accel_z_raw);
+    Roll_angle  =  Drone_ahrs.getPitch()*(float)DEG_TO_RAD;
+    Pitch_angle =  Drone_ahrs.getRoll()*(float)DEG_TO_RAD;
+    Yaw_angle   = -Drone_ahrs.getYaw()*(float)DEG_TO_RAD;
   }
 
+  Roll_rate  = Roll_rate_raw - Roll_rate_offset;
+  Pitch_rate = Pitch_rate_raw - Pitch_rate_offset;
+  Yaw_rate   = Yaw_rate_raw - Yaw_rate_offset;
 
   #if 1
-  acc_norm = sqrt(Ax*Ax + Ay*Ay + Az*Az);
+  acc_norm = sqrt(Accel_x_raw*Accel_x_raw + Accel_y_raw*Accel_y_raw + Accel_z_raw*Accel_z_raw);
   Acc_norm = acc_filter.update(acc_norm);
   if (Acc_norm>9.0) 
   {
@@ -250,19 +269,19 @@ void sensor_read(void)
   }
   #endif
 
-  float phi = Phi;
-  float tht = Theta;
-  //float psi = Psi;
-  //float sphi = sin(phi);
-  float cphi = cos(phi);
+  float Roll_angle = Roll_angle;
+  float tht = Pitch_angle;
+  //float Yaw_angle = Yaw_angle;
+  //float sRoll_angle = sin(Roll_angle);
+  float cRoll_angle = cos(Roll_angle);
  // float stht = sin(tht);
   float ctht = cos(tht);
-  //float spsi = sin(psi);
-  //float spsi = cos(psi);
+  //float sYaw_angle = sin(Yaw_angle);
+  //float sYaw_angle = cos(Yaw_angle);
 
-  float r33 =  cphi*ctht;
+  float r33 =  cRoll_angle*ctht;
   Altitude2 = r33*Altitude;
-  //EstimatedAltitude.update(Altitude2, r33*Az)
+  //EstimatedAltitude.update(Altitude2, r33*Accel_z_raw)
 
 }
 
@@ -270,27 +289,27 @@ void sensor_read(void)
 
 float range = 1.0f;
 
-float phi = 0.0f;
+float Roll_angle = 0.0f;
 float tht = 0.0f;
-float psi = 0.0f;
-float sphi = sin(phi);
-float cphi = cos(phi);
+float Yaw_angle = 0.0f;
+float sRoll_angle = sin(Roll_angle);
+float cRoll_angle = cos(Roll_angle);
 float stht = sin(tht);
 float ctht = cos(tht);
-float spsi = sin(psi);
-float spsi = cos(psi);
+float sYaw_angle = sin(Yaw_angle);
+float sYaw_angle = cos(Yaw_angle);
 
-float r11 =  ctht*cpsi;
-float r12 =  sphi*stht*cpsi - cphi*spsi;
-float r13 =  cphi*stht*cpsi + sphi*spsi;
+float r11 =  ctht*cYaw_angle;
+float r12 =  sRoll_angle*stht*cYaw_angle - cRoll_angle*sYaw_angle;
+float r13 =  cRoll_angle*stht*cYaw_angle + sRoll_angle*sYaw_angle;
 
-float r21 =  ctht*spsi;
-float r22 =  sphi*stht*spsi + cphi*cpsi;
-float r23 =  cphi*stht*spsi - sphi*cpsi;
+float r21 =  ctht*sYaw_angle;
+float r22 =  sRoll_angle*stht*sYaw_angle + cRoll_angle*cYaw_angle;
+float r23 =  cRoll_angle*stht*sYaw_angle - sRoll_angle*cYaw_angle;
 
 float r31 = -stht;
-float r32 =  sphi*ctht;
-float r33 =  cphi*ctht;
+float r32 =  sRoll_angle*ctht;
+float r33 =  cRoll_angle*ctht;
 
 float x = r13*range;
 float y = r23*range;
