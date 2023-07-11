@@ -2,10 +2,10 @@
 
 //モータPWM出力Pinのアサイン
 //Motor PWM Pin
-const int pwmFL = 7;
-const int pwmFR = 1;
-const int pwmRL = 12;
-const int pwmRR = 42;
+const int pwmFrontLeft  = 7;
+const int pwmFrontRight = 1;
+const int pwmRearLeft   = 12;
+const int pwmRearRight  = 42;
 
 //モータPWM周波数 
 //Motor PWM Frequency
@@ -17,10 +17,10 @@ const int resolution = 8;
 
 //モータチャンネルのアサイン
 //Motor Channel
-const int FL_motor = 1;
-const int FR_motor = 2;
-const int RL_motor = 3;
-const int RR_motor = 4;
+const int FrontLeft_motor  = 1;
+const int FrontRight_motor = 2;
+const int RearLeft_motor   = 3;
+const int RearRight_motor  = 4;
 
 //制御周期
 //Control period
@@ -28,31 +28,31 @@ const float Control_period = 0.0025f;//400Hz
 
 //PID Gain
 //Rate control PID gain
-const float P_kp = 0.65f;
-const float P_ti = 0.7f;
-const float P_td = 0.03f;
-const float P_eta = 0.125f;
+const float Roll_rate_kp = 0.65f;
+const float Roll_rate_ti = 0.7f;
+const float Roll_rate_td = 0.03f;
+const float Roll_rate_eta = 0.125f;
 
-const float Q_kp = 0.65f;
-const float Q_ti = 0.7f;
-const float Q_td = 0.03f;
-const float Q_eta = 0.125f;
+const float Pitch_rate_kp = 0.65f;
+const float Pitch_rate_ti = 0.7f;
+const float Pitch_rate_td = 0.03f;
+const float Pitch_rate_eta = 0.125f;
 
-const float R_kp = 3.0f;
-const float R_ti = 0.8f;
-const float R_td = 0.000f;
-const float R_eta = 0.125f;
+const float Yaw_rate_kp = 3.0f;
+const float Yaw_rate_ti = 0.8f;
+const float Yaw_rate_td = 0.000f;
+const float Yaw_rate_eta = 0.125f;
 
 //Angle control PID gain
-const float Phi_kp = 8.0f;//12
-const float Phi_ti = 4.0f;
-const float Phi_td = 0.04f;
-const float Phi_eta = 0.125f;
+const float Rall_angle_kp = 8.0f;//12
+const float Rall_angle_ti = 4.0f;
+const float Rall_angle_td = 0.04f;
+const float Rall_angle_eta = 0.125f;
 
-const float Tht_kp = 8.0f;//12
-const float Tht_ti = 4.0f;
-const float Tht_td = 0.04f;
-const float Tht_eta = 0.125f;
+const float Pitch_angle_kp = 8.0f;//12
+const float Pitch_angle_ti = 4.0f;
+const float Pitch_angle_td = 0.04f;
+const float Pitch_angle_eta = 0.125f;
 
 //Times
 volatile float Elapsed_time=0.0f;
@@ -72,28 +72,25 @@ volatile float FR_duty=0.0f, FL_duty=0.0f, RR_duty=0.0f, RL_duty=0.0f;
 //PID Control reference
 //角速度目標値
 //Rate reference
-volatile float Pref=0.0f, Qref=0.0f, Rref=0.0f;
+volatile float Roll_rate_reference=0.0f, Pitch_rate_reference=0.0f, Yaw_rate_reference=0.0f;
 //角度目標値
 //Angle reference
-volatile float Phi_ref=0.0f, Theta_ref=0.0f, Psi_ref=0.0f;
+volatile float Roll_angle_reference=0.0f, Pitch_angle_reference=0.0f, Yaw_angle_reference=0.0f;
 //舵角指令値
 //Commanad
 //スロットル指令値
 //Throttle
-volatile float T_ref=0.0f;
+volatile float Thrust_command=0.0f;
 //角速度指令値
 //Rate command
-volatile float P_com=0.0f, Q_com=0.0f, R_com=0.0f;
+volatile float Roll_rate_command=0.0f, Pitch_rate_command=0.0f, Yaw_rate_command=0.0f;
 //角度指令値
 //Angle comannd
-volatile float Phi_com=0.0f, Tht_com=0.0f, Psi_com=0.0f;
+volatile float Roll_angle_command=0.0f, Pitch_angle_command=0.0f, Yaw_angle_command=0.0f;
 
 //バイアス・トリム
-volatile float Phi_bias=0.0f, Theta_bias=0.0f, Psi_bias=0.0f;  
+volatile float Roll_angle_bias=0.0f, Pitch_angle_bias=0.0f, Yaw_angle_bias=0.0f;  
 volatile float Elevator_center=0.0f, Aileron_center=0.0f, Rudder_center=0.0f;
-volatile float Phi_trim   =  0.8f*PI/180.0f;
-volatile float Theta_trim = -0.2f*PI/180.0f;
-volatile float Psi_trim   =  0.0f;
 
 //Log
 uint8_t Logflag=0;
@@ -108,7 +105,7 @@ float Motor_on_duty_threshold = 0.1f;
 float Angle_control_on_duty_threshold = 0.5f;
 uint8_t Flip_flag = 0;
 uint16_t Flip_counter = 0; 
-float Flip_time = 2.0;
+float FliRoll_rate_time = 2.0;
 int8_t BtnA_counter = 0;
 uint8_t BtnA_on_flag = 0;
 uint8_t BtnA_off_flag =1;
@@ -216,9 +213,9 @@ void loop_400Hz(void)
       Pbias = 0.0f;
       Qbias = 0.0f;
       Rbias = 0.0f;
-      Phi_bias = 0.0f;
-      Theta_bias = 0.0f;
-      Psi_bias = 0.0f;
+      Roll_angle_bias = 0.0f;
+      Pitch_angle_bias = 0.0f;
+      Yaw_angle_bias = 0.0f;
       Mode = AVERAGE_MODE;
       return;
   }
@@ -367,15 +364,15 @@ void loop_400Hz(void)
 void control_init(void)
 {
   //Rate control
-  p_pid.set_parameter(P_kp, P_ti, P_td, P_eta, Control_period);//Roll rate control gain
-  q_pid.set_parameter(Q_kp, Q_ti, Q_td, Q_eta, Control_period);//Pitch rate control gain
-  r_pid.set_parameter(R_kp, R_ti, R_td, R_eta, Control_period);//Yaw rate control gain
+  p_pid.set_parameter(Roll_rate_kp, Roll_rate_ti, Roll_rate_td, Roll_rate_eta, Control_period);//Roll rate control gain
+  q_pid.set_parameter(Pitch_rate_kp, Pitch_rate_ti, Pitch_rate_td, Pitch_rate_eta, Control_period);//Pitch rate control gain
+  r_pid.set_parameter(Yaw_rate_kp, Yaw_rate_ti, Yaw_rate_td, Yaw_rate_eta, Control_period);//Yaw rate control gain
   //Roll P gain を挙げてみて分散が減るかどうか考える
   //Roll Ti を大きくしてみる
 
   //Angle control
-  phi_pid.set_parameter  (Phi_kp, Phi_ti, Phi_td, Phi_eta, Control_period);//Roll angle control gain
-  theta_pid.set_parameter(Tht_kp, Tht_ti, Tht_td, Tht_eta, Control_period);//Pitch angle control gain
+  phi_pid.set_parameter  (Rall_angle_kp, Rall_angle_ti, Rall_angle_td, Rall_angle_eta, Control_period);//Roll angle control gain
+  theta_pid.set_parameter(Pitch_angle_kp, Pitch_angle_ti, Pitch_angle_td, Pitch_angle_eta, Control_period);//Pitch angle control gain
 
 }
 ///////////////////////////////////////////////////////////////////
@@ -388,7 +385,7 @@ void get_command(void)
   Control_mode = Stick[CONTROLMODE];
 
   //if(OverG_flag == 1){
-  //  T_ref = 0.0;
+  //  Thrust_command = 0.0;
   //}
 
   //Throttle curve conversion　スロットルカーブ補正
@@ -397,34 +394,34 @@ void get_command(void)
   thlo = thlo/throttle_limit;
   if (thlo>1.0f) thlo = 1.0f;
   if (thlo<0.05f) thlo = 0.0f;
-  //T_ref = (3.07f*thlo -3.88f*thlo*thlo + 1.75f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  T_ref = thlo*BATTERY_VOLTAGE;
+  //Thrust_command = (3.07f*thlo -3.88f*thlo*thlo + 1.75f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
+  Thrust_command = thlo*BATTERY_VOLTAGE;
 
   #ifdef MINIJOYC
-  Phi_com = 0.6*Stick[AILERON];
-  if (Phi_com<-1.0f)Phi_com = -1.0f;
-  if (Phi_com> 1.0f)Phi_com =  1.0f;  
-  Tht_com = 0.6*Stick[ELEVATOR];
-  if (Tht_com<-1.0f)Tht_com = -1.0f;
-  if (Tht_com> 1.0f)Tht_com =  1.0f;  
+  Roll_angle_command = 0.6*Stick[AILERON];
+  if (Roll_angle_command<-1.0f)Roll_angle_command = -1.0f;
+  if (Roll_angle_command> 1.0f)Roll_angle_command =  1.0f;  
+  Pitch_angle_command = 0.6*Stick[ELEVATOR];
+  if (Pitch_angle_command<-1.0f)Pitch_angle_command = -1.0f;
+  if (Pitch_angle_command> 1.0f)Pitch_angle_command =  1.0f;  
   #else
-  Phi_com = 0.4*Stick[AILERON];
-  if (Phi_com<-1.0f)Phi_com = -1.0f;
-  if (Phi_com> 1.0f)Phi_com =  1.0f;  
-  Tht_com = 0.4*Stick[ELEVATOR];
-  if (Tht_com<-1.0f)Tht_com = -1.0f;
-  if (Tht_com> 1.0f)Tht_com =  1.0f;  
+  Roll_angle_command = 0.4*Stick[AILERON];
+  if (Roll_angle_command<-1.0f)Roll_angle_command = -1.0f;
+  if (Roll_angle_command> 1.0f)Roll_angle_command =  1.0f;  
+  Pitch_angle_command = 0.4*Stick[ELEVATOR];
+  if (Pitch_angle_command<-1.0f)Pitch_angle_command = -1.0f;
+  if (Pitch_angle_command> 1.0f)Pitch_angle_command =  1.0f;  
   #endif
-  Psi_com = Stick[RUDDER];
-  if (Psi_com<-1.0f)Psi_com = -1.0f;
-  if (Psi_com> 1.0f)Psi_com =  1.0f;  
+  Yaw_angle_command = Stick[RUDDER];
+  if (Yaw_angle_command<-1.0f)Yaw_angle_command = -1.0f;
+  if (Yaw_angle_command> 1.0f)Yaw_angle_command =  1.0f;  
   //Yaw control
-  Rref   = 1.5f * PI * (Psi_com - Rudder_center);
+  Yaw_rate_reference   = 1.5f * PI * (Yaw_angle_command - Rudder_center);
 
   if (Control_mode == RATECONTROL)
   {
-    Pref = 240*PI/180*Phi_com;
-    Qref = 240*PI/180*Tht_com;
+    Roll_rate_reference = 240*PI/180*Roll_angle_command;
+    Pitch_rate_reference = 240*PI/180*Pitch_angle_command;
   }
 
   // A button
@@ -460,7 +457,7 @@ void rate_control(void)
   //Control main
   if(rc_isconnected())
   {
-    if(T_ref/BATTERY_VOLTAGE < Motor_on_duty_threshold)
+    if(Thrust_command/BATTERY_VOLTAGE < Motor_on_duty_threshold)
     {
       if(Control_mode == ANGLECONTROL)
       {
@@ -477,10 +474,10 @@ void rate_control(void)
       p_pid.reset();
       q_pid.reset();
       r_pid.reset();
-      Pref=0.0f;
-      Qref=0.0f;
-      Rref=0.0f;
-      Rudder_center   = Psi_com;
+      Roll_rate_reference = 0.0f;
+      Pitch_rate_reference = 0.0f;
+      Yaw_rate_reference = 0.0f;
+      Rudder_center   = Yaw_angle_command;
     }
     else
     {
@@ -491,9 +488,9 @@ void rate_control(void)
       r_rate = Wr - Rbias;
 
       //Get reference
-      p_ref = Pref;
-      q_ref = Qref;
-      r_ref = Rref;
+      p_ref = Roll_rate_reference;
+      q_ref = Pitch_rate_reference;
+      r_ref = Yaw_rate_reference;
 
       //Error
       p_err = p_ref - p_rate;
@@ -501,16 +498,16 @@ void rate_control(void)
       r_err = r_ref - r_rate;
 
       //Rate Control PID
-      P_com = p_pid.update(p_err);
-      Q_com = q_pid.update(q_err);
-      R_com = r_pid.update(r_err);
+      Roll_rate_command = p_pid.update(p_err);
+      Pitch_rate_command = q_pid.update(q_err);
+      Yaw_rate_command = r_pid.update(r_err);
 
       //Motor Control
       //正規化Duty
-      FR_duty = (T_ref +(-P_com +Q_com +R_com)*0.25f)/BATTERY_VOLTAGE;
-      FL_duty = (T_ref +( P_com +Q_com -R_com)*0.25f)/BATTERY_VOLTAGE;
-      RR_duty = (T_ref +(-P_com -Q_com -R_com)*0.25f)/BATTERY_VOLTAGE;
-      RL_duty = (T_ref +( P_com -Q_com +R_com)*0.25f)/BATTERY_VOLTAGE;
+      FR_duty = (Thrust_command +(-Roll_rate_command +Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      FL_duty = (Thrust_command +( Roll_rate_command +Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      RR_duty = (Thrust_command +(-Roll_rate_command -Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      RL_duty = (Thrust_command +( Roll_rate_command -Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
       
       const float minimum_duty=0.0f;
       const float maximum_duty=0.95f;
@@ -564,28 +561,28 @@ void angle_control(void)
   //USBSerial.printf("On=%d Off=%d Flip=%d Counter=%d\r\n", BtnA_on_flag, BtnA_off_flag, Flip_flag, Flip_counter);
 
   //PID Control
-  if ((T_ref/BATTERY_VOLTAGE < Motor_on_duty_threshold))//Angle_control_on_duty_threshold))
+  if ((Thrust_command/BATTERY_VOLTAGE < Motor_on_duty_threshold))//Angle_control_on_duty_threshold))
   {
     //Initialize
-    Pref=0.0f;
-    Qref=0.0f;
+    Roll_rate_reference=0.0f;
+    Pitch_rate_reference=0.0f;
     phi_err = 0.0f;
     theta_err = 0.0f;
     phi_pid.reset();
     theta_pid.reset();
-    phi_pid.set_error(Phi_ref);
-    theta_pid.set_error(Theta_ref);
+    phi_pid.set_error(Roll_angle_reference);
+    theta_pid.set_error(Pitch_angle_reference);
     Flip_flag = 0;
     Flip_counter = 0;
 
     /////////////////////////////////////
     // 以下の処理で、角度制御が有効になった時に
     // 急激な目標値が発生して機体が不安定になるのを防止する
-    Aileron_center  = Phi_com;
-    Elevator_center = Tht_com;
+    Aileron_center  = Roll_angle_command;
+    Elevator_center = Pitch_angle_command;
 
-    Phi_bias   = 0;
-    Theta_bias = 0;
+    Roll_angle_bias   = 0;
+    Pitch_angle_bias = 0;
     /////////////////////////////////////
   }
   else
@@ -603,12 +600,12 @@ void angle_control(void)
       phi_pid.reset();
       theta_pid.reset();
     
-      Flip_time = 0.26;
-      Pref = 2.0*PI/Flip_time;
-      Qref = 0.0;
-      if (Flip_counter > (uint16_t)(Flip_time/0.0025) )
+      FliRoll_rate_time = 0.26;
+      Roll_rate_reference = 2.0*PI/FliRoll_rate_time;
+      Pitch_rate_reference = 0.0;
+      if (Flip_counter > (uint16_t)(FliRoll_rate_time/0.0025) )
       {
-        Flip_counter = (uint16_t)(Flip_time/0.0025);
+        Flip_counter = (uint16_t)(FliRoll_rate_time/0.0025);
         Flip_flag = 0;
         Flip_counter = 0;
       }
@@ -620,28 +617,28 @@ void angle_control(void)
       //Angle Control
       Led_color = RED;
       //Get Roll and Pitch angle ref 
-      Phi_ref   = 0.5f * PI * (Phi_com - Aileron_center);
-      Theta_ref = 0.5f * PI * (Tht_com - Elevator_center);
-      if (Phi_ref > (30.0f*PI/180.0f) ) Phi_ref = 30.0f*PI/180.0f;
-      if (Phi_ref <-(30.0f*PI/180.0f) ) Phi_ref =-30.0f*PI/180.0f;
-      if (Theta_ref > (30.0f*PI/180.0f) ) Theta_ref = 30.0f*PI/180.0f;
-      if (Theta_ref <-(30.0f*PI/180.0f) ) Theta_ref =-30.0f*PI/180.0f;
+      Roll_angle_reference   = 0.5f * PI * (Roll_angle_command - Aileron_center);
+      Pitch_angle_reference = 0.5f * PI * (Pitch_angle_command - Elevator_center);
+      if (Roll_angle_reference > (30.0f*PI/180.0f) ) Roll_angle_reference = 30.0f*PI/180.0f;
+      if (Roll_angle_reference <-(30.0f*PI/180.0f) ) Roll_angle_reference =-30.0f*PI/180.0f;
+      if (Pitch_angle_reference > (30.0f*PI/180.0f) ) Pitch_angle_reference = 30.0f*PI/180.0f;
+      if (Pitch_angle_reference <-(30.0f*PI/180.0f) ) Pitch_angle_reference =-30.0f*PI/180.0f;
 
       //Error
-      phi_err   = Phi_ref   - (Phi   - Phi_bias );
-      theta_err = Theta_ref - (Theta - Theta_bias);
+      phi_err   = Roll_angle_reference   - (Phi   - Roll_angle_bias );
+      theta_err = Pitch_angle_reference - (Theta - Pitch_angle_bias);
     
       //PID
-      Pref = phi_pid.update(phi_err);
-      Qref = theta_pid.update(theta_err);
+      Roll_rate_reference = phi_pid.update(phi_err);
+      Pitch_rate_reference = theta_pid.update(theta_err);
     } 
   }
 }
 
-void set_duty_fr(float duty){ledcWrite(FR_motor, (uint32_t)(255*duty));}
-void set_duty_fl(float duty){ledcWrite(FL_motor, (uint32_t)(255*duty));}
-void set_duty_rr(float duty){ledcWrite(RR_motor, (uint32_t)(255*duty));}
-void set_duty_rl(float duty){ledcWrite(RL_motor, (uint32_t)(255*duty));}
+void set_duty_fr(float duty){ledcWrite(FrontRight_motor, (uint32_t)(255*duty));}
+void set_duty_fl(float duty){ledcWrite(FrontLeft_motor, (uint32_t)(255*duty));}
+void set_duty_rr(float duty){ledcWrite(RearRight_motor, (uint32_t)(255*duty));}
+void set_duty_rl(float duty){ledcWrite(RearLeft_motor, (uint32_t)(255*duty));}
 
 void m5_atom_led(CRGB p, uint8_t state)
 {
@@ -654,14 +651,14 @@ void m5_atom_led(CRGB p, uint8_t state)
 
 void init_pwm(void)
 {
-  ledcSetup(FL_motor, freq, resolution);
-  ledcSetup(FR_motor, freq, resolution);
-  ledcSetup(RL_motor, freq, resolution);
-  ledcSetup(RR_motor, freq, resolution);
-  ledcAttachPin(pwmFL, FL_motor);
-  ledcAttachPin(pwmFR, FR_motor);
-  ledcAttachPin(pwmRL, RL_motor);
-  ledcAttachPin(pwmRR, RR_motor);
+  ledcSetup(FrontLeft_motor, freq, resolution);
+  ledcSetup(FrontRight_motor, freq, resolution);
+  ledcSetup(RearLeft_motor, freq, resolution);
+  ledcSetup(RearRight_motor, freq, resolution);
+  ledcAttachPin(pwmFrontLeft, FrontLeft_motor);
+  ledcAttachPin(pwmFrontRight, FrontRight_motor);
+  ledcAttachPin(pwmRearLeft, RearLeft_motor);
+  ledcAttachPin(pwmRearRight, RearRight_motor);
 }
 
 void telemetry(void)
@@ -689,126 +686,126 @@ void telemetry(void)
     senddata[0]=99;
     senddata[1]=99;
     index=2;
-    //P_kp
-    data2log(senddata, P_kp, index);
-    //d_float = P_kp;
+    //Roll_rate_kp
+    data2log(senddata, Roll_rate_kp, index);
+    //d_float = Roll_rate_kp;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //P_ti
-    data2log(senddata, P_ti, index);
-    //d_float = P_ti;
+    //Roll_rate_ti
+    data2log(senddata, Roll_rate_ti, index);
+    //d_float = Roll_rate_ti;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //P_td
-    data2log(senddata, P_td, index);
-    //d_float = P_td;
+    //Roll_rate_td
+    data2log(senddata, Roll_rate_td, index);
+    //d_float = Roll_rate_td;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //P_eta
-    data2log(senddata, P_eta, index);
-    //d_float = P_eta;
-    //float2byte(d_float, d_int);
-    //append_data(senddata, d_int, index, 4);
-    index = index + 4;
-
-    //Q_kp
-    data2log(senddata, Q_kp, index);
-    //d_float = Q_kp;
-    //float2byte(d_float, d_int);
-    //append_data(senddata, d_int, index, 4);
-    index = index + 4;
-    //Q_ti
-    data2log(senddata, Q_ti, index);
-    //d_float = Q_ti;
-    //float2byte(d_float, d_int);
-    //append_data(senddata, d_int, index, 4);
-    index = index + 4;
-    //Q_td
-    data2log(senddata, Q_td, index);
-    //d_float = Q_td;
-    //float2byte(d_float, d_int);
-    //append_data(senddata, d_int, index, 4);
-    index = index + 4;
-    //Q_eta
-    data2log(senddata, Q_eta, index);
-    //d_float = Q_eta;
+    //Roll_rate_eta
+    data2log(senddata, Roll_rate_eta, index);
+    //d_float = Roll_rate_eta;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
 
-    //R_kp
-    data2log(senddata, R_kp, index);
-    //d_float = R_kp;
+    //Pitch_rate_kp
+    data2log(senddata, Pitch_rate_kp, index);
+    //d_float = Pitch_rate_kp;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //R_ti
-    data2log(senddata, R_ti, index);
-    //d_float = R_ti;
+    //Pitch_rate_ti
+    data2log(senddata, Pitch_rate_ti, index);
+    //d_float = Pitch_rate_ti;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //R_td
-    data2log(senddata, R_td, index);
-    //d_float = R_td;
+    //Pitch_rate_td
+    data2log(senddata, Pitch_rate_td, index);
+    //d_float = Pitch_rate_td;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //R_eta
-    data2log(senddata, R_eta, index);
-    //d_float = R_eta;
+    //Pitch_rate_eta
+    data2log(senddata, Pitch_rate_eta, index);
+    //d_float = Pitch_rate_eta;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
 
-    //Phi_kp
-    data2log(senddata, Phi_kp, index);
-    //d_float = Phi_kp;
+    //Yaw_rate_kp
+    data2log(senddata, Yaw_rate_kp, index);
+    //d_float = Yaw_rate_kp;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //Phi_ti
-    data2log(senddata, Phi_ti, index);
-    //d_float = Phi_ti;
+    //Yaw_rate_ti
+    data2log(senddata, Yaw_rate_ti, index);
+    //d_float = Yaw_rate_ti;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //Phi_td
-    data2log(senddata, Phi_td, index);
-    //d_float = Phi_td;
+    //Yaw_rate_td
+    data2log(senddata, Yaw_rate_td, index);
+    //d_float = Yaw_rate_td;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //Phi_eta
-    data2log(senddata, Phi_eta, index);
-    //d_float = Phi_eta;
+    //Yaw_rate_eta
+    data2log(senddata, Yaw_rate_eta, index);
+    //d_float = Yaw_rate_eta;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //Tht_kp
-    data2log(senddata, Tht_kp, index);
-    //d_float = Tht_kp;
+
+    //Rall_angle_kp
+    data2log(senddata, Rall_angle_kp, index);
+    //d_float = Rall_angle_kp;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //Tht_ti
-    data2log(senddata, Tht_ti, index);
-    //d_float = Tht_ti;
+    //Rall_angle_ti
+    data2log(senddata, Rall_angle_ti, index);
+    //d_float = Rall_angle_ti;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //Tht_td
-    data2log(senddata, Tht_td, index);
-    //d_float = Tht_td;
+    //Rall_angle_td
+    data2log(senddata, Rall_angle_td, index);
+    //d_float = Rall_angle_td;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-    //Tht_eta
-    data2log(senddata, Tht_eta, index);
-    //d_float = Tht_eta;
+    //Rall_angle_eta
+    data2log(senddata, Rall_angle_eta, index);
+    //d_float = Rall_angle_eta;
+    //float2byte(d_float, d_int);
+    //append_data(senddata, d_int, index, 4);
+    index = index + 4;
+    //Pitch_angle_kp
+    data2log(senddata, Pitch_angle_kp, index);
+    //d_float = Pitch_angle_kp;
+    //float2byte(d_float, d_int);
+    //append_data(senddata, d_int, index, 4);
+    index = index + 4;
+    //Pitch_angle_ti
+    data2log(senddata, Pitch_angle_ti, index);
+    //d_float = Pitch_angle_ti;
+    //float2byte(d_float, d_int);
+    //append_data(senddata, d_int, index, 4);
+    index = index + 4;
+    //Pitch_angle_td
+    data2log(senddata, Pitch_angle_td, index);
+    //d_float = Pitch_angle_td;
+    //float2byte(d_float, d_int);
+    //append_data(senddata, d_int, index, 4);
+    index = index + 4;
+    //Pitch_angle_eta
+    data2log(senddata, Pitch_angle_eta, index);
+    //d_float = Pitch_angle_eta;
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
@@ -829,13 +826,13 @@ void telemetry(void)
     data2log(senddata, 1e-6*Dt_time, index);
     index = index + 4;
     //3 Phi
-    data2log(senddata, (Phi-Phi_bias)*180/PI, index);
+    data2log(senddata, (Phi-Roll_angle_bias)*180/PI, index);
     index = index + 4;
     //4 Theta
-    data2log(senddata, (Theta-Theta_bias)*180/PI, index);
+    data2log(senddata, (Theta-Pitch_angle_bias)*180/PI, index);
     index = index + 4;
     //5 Psi
-    data2log(senddata, (Psi-Psi_bias)*180/PI, index);
+    data2log(senddata, (Psi-Yaw_angle_bias)*180/PI, index);
     index = index + 4;
     //6 P
     data2log(senddata, (Wp-Pbias)*180/PI, index);
@@ -846,25 +843,25 @@ void telemetry(void)
     //8 R
     data2log(senddata, (Wr-Rbias)*180/PI, index);
     index = index + 4;
-    //9 Phi_ref
-    data2log(senddata, Phi_ref*180/PI, index);
-    //data2log(senddata, 0.5f * 180.0f *Phi_com, index);
+    //9 Roll_angle_reference
+    data2log(senddata, Roll_angle_reference*180/PI, index);
+    //data2log(senddata, 0.5f * 180.0f *Roll_angle_command, index);
     index = index + 4;
-    //10 Theta_ref
-    data2log(senddata, Theta_ref*180/PI, index);
-    //data2log(senddata, 0.5 * 189.0f* Tht_com, index);
+    //10 Pitch_angle_reference
+    data2log(senddata, Pitch_angle_reference*180/PI, index);
+    //data2log(senddata, 0.5 * 189.0f* Pitch_angle_command, index);
     index = index + 4;
     //11 P ref
-    data2log(senddata, Pref*180/PI, index);
+    data2log(senddata, Roll_rate_reference*180/PI, index);
     index = index + 4;
     //12 Q ref
-    data2log(senddata, Qref*180/PI, index);
+    data2log(senddata, Pitch_rate_reference*180/PI, index);
     index = index + 4;
     //13 R ref
-    data2log(senddata, Rref*180/PI, index);
+    data2log(senddata, Yaw_rate_reference*180/PI, index);
     index = index + 4;
     //14 T ref
-    data2log(senddata, T_ref/BATTERY_VOLTAGE, index);
+    data2log(senddata, Thrust_command/BATTERY_VOLTAGE, index);
     index = index + 4;
     //15 Voltage
     data2log(senddata, Voltage, index);
