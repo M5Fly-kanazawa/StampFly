@@ -274,6 +274,8 @@ void loop_400Hz(void)
 uint8_t judge_mode_change(void)
 {
   //Ariming Button が押されて離されたかを確認
+  uint8_t state;
+  state = 0;
   if(LockMode == 0)
   {
     if( get_arming_button()==1)
@@ -286,10 +288,11 @@ uint8_t judge_mode_change(void)
     if( get_arming_button()==0)
     {
       LockMode = 0;
+      state = 1;
     }
-    return 1;
   }
-  return 0;
+  //USBSerial.printf("%d %d\n\r", state, LockMode);
+  return state;
 }
 
 void led_drive(void)
@@ -522,7 +525,6 @@ void rate_control(void)
         RL_duty = 0.0;
         motor_stop();
         OverG_flag=0;
-        LockMode = 0;
         Mode = PARKING_MODE;
       }
       //USBSerial.printf("%12.5f %12.5f %12.5f %12.5f\n",FR_duty, FL_duty, RR_duty, RL_duty);
@@ -647,7 +649,7 @@ void init_pwm(void)
 uint8_t get_arming_button(void)
 {
   static int8_t chatta=0;
-  uint8_t state;
+  static uint8_t state=0;
   if( (int)Stick[BUTTON] == 1 )
   { 
     chatta++;
@@ -666,6 +668,7 @@ uint8_t get_arming_button(void)
     }
     
   }
+  //USBSerial.println(state);
   return state;
 }
 
