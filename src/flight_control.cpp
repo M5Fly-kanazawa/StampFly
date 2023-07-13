@@ -66,7 +66,10 @@ uint16_t OffsetCounter=0;
 uint16_t LedBlinkCounter=0;
 
 //Motor Duty 
-volatile float FR_duty=0.0f, FL_duty=0.0f, RR_duty=0.0f, RL_duty=0.0f;
+volatile float FrontRight_motor_duty=0.0f;
+volatile float FrontLeft_motor_duty=0.0f;
+volatile float RearRight_motor_duty=0.0f;
+volatile float RearLeft_motor_duty=0.0f;
 
 //制御目標
 //PID Control reference
@@ -452,10 +455,10 @@ void rate_control(void)
   {
     if(Thrust_command/BATTERY_VOLTAGE < Motor_on_duty_threshold)
     {      
-      FR_duty = 0.0;
-      FL_duty = 0.0;
-      RR_duty = 0.0;
-      RL_duty = 0.0;
+      FrontRight_motor_duty = 0.0;
+      FrontLeft_motor_duty = 0.0;
+      RearRight_motor_duty = 0.0;
+      RearLeft_motor_duty = 0.0;
       motor_stop();
       p_pid.reset();
       q_pid.reset();
@@ -490,44 +493,44 @@ void rate_control(void)
 
       //Motor Control
       //正規化Duty
-      FR_duty = (Thrust_command +(-Roll_rate_command +Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
-      FL_duty = (Thrust_command +( Roll_rate_command +Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
-      RR_duty = (Thrust_command +(-Roll_rate_command -Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
-      RL_duty = (Thrust_command +( Roll_rate_command -Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      FrontRight_motor_duty = (Thrust_command +(-Roll_rate_command +Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      FrontLeft_motor_duty = (Thrust_command +( Roll_rate_command +Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      RearRight_motor_duty = (Thrust_command +(-Roll_rate_command -Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      RearLeft_motor_duty = (Thrust_command +( Roll_rate_command -Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
       
       const float minimum_duty=0.0f;
       const float maximum_duty=0.95f;
 
-      if (FR_duty < minimum_duty) FR_duty = minimum_duty;
-      if (FR_duty > maximum_duty) FR_duty = maximum_duty;
+      if (FrontRight_motor_duty < minimum_duty) FrontRight_motor_duty = minimum_duty;
+      if (FrontRight_motor_duty > maximum_duty) FrontRight_motor_duty = maximum_duty;
 
-      if (FL_duty < minimum_duty) FL_duty = minimum_duty;
-      if (FL_duty > maximum_duty) FL_duty = maximum_duty;
+      if (FrontLeft_motor_duty < minimum_duty) FrontLeft_motor_duty = minimum_duty;
+      if (FrontLeft_motor_duty > maximum_duty) FrontLeft_motor_duty = maximum_duty;
 
-      if (RR_duty < minimum_duty) RR_duty = minimum_duty;
-      if (RR_duty > maximum_duty) RR_duty = maximum_duty;
+      if (RearRight_motor_duty < minimum_duty) RearRight_motor_duty = minimum_duty;
+      if (RearRight_motor_duty > maximum_duty) RearRight_motor_duty = maximum_duty;
 
-      if (RL_duty < minimum_duty) RL_duty = minimum_duty;
-      if (RL_duty > maximum_duty) RL_duty = maximum_duty;
+      if (RearLeft_motor_duty < minimum_duty) RearLeft_motor_duty = minimum_duty;
+      if (RearLeft_motor_duty > maximum_duty) RearLeft_motor_duty = maximum_duty;
 
       //Duty set
       if (OverG_flag==0){
-        set_duty_fr(FR_duty);
-        set_duty_fl(FL_duty);
-        set_duty_rr(RR_duty);
-        set_duty_rl(RL_duty);      
+        set_duty_fr(FrontRight_motor_duty);
+        set_duty_fl(FrontLeft_motor_duty);
+        set_duty_rr(RearRight_motor_duty);
+        set_duty_rl(RearLeft_motor_duty);      
       }
       else 
       {
-        FR_duty = 0.0;
-        FL_duty = 0.0;
-        RR_duty = 0.0;
-        RL_duty = 0.0;
+        FrontRight_motor_duty = 0.0;
+        FrontLeft_motor_duty = 0.0;
+        RearRight_motor_duty = 0.0;
+        RearLeft_motor_duty = 0.0;
         motor_stop();
         OverG_flag=0;
         Mode = PARKING_MODE;
       }
-      //USBSerial.printf("%12.5f %12.5f %12.5f %12.5f\n",FR_duty, FL_duty, RR_duty, RL_duty);
+      //USBSerial.printf("%12.5f %12.5f %12.5f %12.5f\n",FrontRight_motor_duty, FrontLeft_motor_duty, RearRight_motor_duty, RearLeft_motor_duty);
     }
   }
   else{
@@ -889,17 +892,17 @@ void telemetry(void)
     //19 Acc Norm
     data2log(senddata, Acc_norm, index);
     index = index + 4;
-    //20 FR_duty
-    data2log(senddata, FR_duty, index);
+    //20 FrontRight_motor_duty
+    data2log(senddata, FrontRight_motor_duty, index);
     index = index + 4;
-    //21 FL_duty
-    data2log(senddata, FL_duty, index);
+    //21 FrontLeft_motor_duty
+    data2log(senddata, FrontLeft_motor_duty, index);
     index = index + 4;
-    //22 RR_duty
-    data2log(senddata, RR_duty, index);
+    //22 RearRight_motor_duty
+    data2log(senddata, RearRight_motor_duty, index);
     index = index + 4;
-    //23 RL_duty
-    data2log(senddata, RL_duty, index);
+    //23 RearLeft_motor_duty
+    data2log(senddata, RearLeft_motor_duty, index);
     index = index + 4;
     //24 Altitude2
     data2log(senddata, Altitude2, index);
