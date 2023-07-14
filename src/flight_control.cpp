@@ -204,6 +204,9 @@ void loop_400Hz(void)
   
   led_drive();
 
+  //S.BUS read
+  sbus_dacode();
+
   //Read Sensor Value
   sensor_read();
 
@@ -378,7 +381,7 @@ void control_init(void)
 
 void get_command(void)
 {
-  Control_mode = Stick[CONTROLMODE];
+  Control_mode = ANGLECONTROL;
 
   //if(OverG_flag == 1){
   //  Thrust_command = 0.0;
