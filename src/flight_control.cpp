@@ -264,7 +264,7 @@ void loop_400Hz(void)
   }
 
   //Telemetry
-  if (Telem_cnt == 0)telemetry();
+  //if (Telem_cnt == 0)telemetry();
   Telem_cnt++;
   if (Telem_cnt>10-1)Telem_cnt = 0;
 
