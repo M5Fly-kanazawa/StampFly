@@ -95,8 +95,8 @@ volatile float Roll_angle_command=0.0f, Pitch_angle_command=0.0f, Yaw_angle_comm
 volatile float Roll_angle_offset=0.0f, Pitch_angle_offset=0.0f, Yaw_angle_offset=0.0f;  
 volatile float Elevator_center=0.0f, Aileron_center=0.0f, Rudder_center=0.0f;
 
-//Log
-uint8_t Logflag=0;
+//Telemetory
+uint8_t Telem_mode=0;
 uint8_t Telem_cnt = 0;
 
 //Machine state
@@ -771,9 +771,9 @@ void telemetry(void)
   uint8_t senddata[MAXINDEX]; 
   uint8_t index=0;  
 
-  if(Logflag==0)
+  if(Telem_mode==0)
   {
-    Logflag = 1;
+    Telem_mode = 1;
     index=2;
     for (uint8_t i=0;i<(MAXINDEX-2)/4;i++)
     {
