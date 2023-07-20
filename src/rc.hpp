@@ -15,8 +15,8 @@
 #define DPAD_DOWN 6
 #define DPAD_LEFT 7
 #define DPAD_RIGHT 8
-#define BUTTON 9
-#define BUTTON_A 10
+#define BUTTON_ARM 9
+#define BUTTON_FLIP 10
 #define CONTROLMODE 11
 
 #define RUDDER_MAX 511

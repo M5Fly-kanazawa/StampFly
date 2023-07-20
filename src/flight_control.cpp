@@ -106,15 +106,20 @@ uint8_t Control_mode = ANGLECONTROL;
 volatile uint8_t LockMode=0;
 float Motor_on_duty_threshold = 0.1f;
 float Angle_control_on_duty_threshold = 0.5f;
-uint8_t Flip_flag = 0;
-uint16_t Flip_counter = 0; 
-float FliRoll_rate_time = 2.0;
 int8_t BtnA_counter = 0;
 uint8_t BtnA_on_flag = 0;
 uint8_t BtnA_off_flag =1;
 volatile uint8_t Loop_flag = 0;
 volatile uint8_t Angle_control_flag = 0;
 uint32_t Led_color = 0x000000;
+
+//flip
+float FliRoll_rate_time = 2.0;
+uint8_t Flip_flag = 0;
+uint16_t Flip_counter = 0; 
+float Flip_time = 2.0;
+volatile uint8_t Ahrs_reset_flag=0;
+float T_flip;
 
 //PID object and etc.
 PID p_pid;
@@ -139,6 +144,7 @@ void motor_stop(void);
 void led_drive(void);
 uint8_t judge_mode_change(void);
 uint8_t get_arming_button(void);
+uint8_t get_flip_button(void);
 void set_duty_fr(float duty);
 void set_duty_fl(float duty);
 void set_duty_rr(float duty);
@@ -264,7 +270,7 @@ void loop_400Hz(void)
   }
 
   //Telemetry
-  //if (Telem_cnt == 0)telemetry();
+  if (Telem_cnt == 0)telemetry();
   Telem_cnt++;
   if (Telem_cnt>10-1)Telem_cnt = 0;
 
@@ -422,8 +428,14 @@ void get_command(void)
     Pitch_rate_reference = 240*PI/180*Pitch_angle_command;
   }
 
-  // A button
-  if (Stick[BUTTON_A]==1) BtnA_counter ++;
+  // flip button check
+  if (Flip_flag == 0)
+  {
+    Flip_flag = get_flip_button();
+  }
+
+  #if 0
+  if (Stick[BUTTON_FLIP]==1) BtnA_counter ++;
   else BtnA_counter --;
   if (BtnA_counter>20)
   {
@@ -440,6 +452,7 @@ void get_command(void)
     BtnA_on_flag = 0;
     BtnA_off_flag = 1;
   }
+  #endif
 
   //USBSerial.printf("%5.2f %5.2f %5.2f %5.2f \n\r", 
   //  Stick[THROTTLE], Stick[RUDDER], Stick[AILERON], Stick[ELEVATOR]);
@@ -496,9 +509,9 @@ void rate_control(void)
       //Motor Control
       //正規化Duty
       FrontRight_motor_duty = (Thrust_command +(-Roll_rate_command +Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
-      FrontLeft_motor_duty = (Thrust_command +( Roll_rate_command +Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
-      RearRight_motor_duty = (Thrust_command +(-Roll_rate_command -Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
-      RearLeft_motor_duty = (Thrust_command +( Roll_rate_command -Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      FrontLeft_motor_duty =  (Thrust_command +( Roll_rate_command +Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      RearRight_motor_duty =  (Thrust_command +(-Roll_rate_command -Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      RearLeft_motor_duty =   (Thrust_command +( Roll_rate_command -Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
       
       const float minimum_duty=0.0f;
       const float maximum_duty=0.95f;
@@ -545,6 +558,10 @@ void angle_control(void)
   float phi_err,theta_err;
   static uint8_t cnt=0;
   static float timeval=0.0f;
+  //flip
+  uint16_t flip_delay = 150; 
+  uint16_t flip_step;
+  float domega;
 
   if (Control_mode == RATECONTROL) return;
 
@@ -578,36 +595,77 @@ void angle_control(void)
   else
   {
     //Flip
-    if (0)// (BtnA_on_flag == 1) || (Flip_flag == 1))
+    if (Flip_flag == 1)
     { 
-      #if 0
+      #if 1
       Led_color = 0xFF9933;
-
-      BtnA_on_flag = 0;
-      Flip_flag = 1;
 
       //PID Reset
       phi_pid.reset();
       theta_pid.reset();
     
-      FliRoll_rate_time = 0.26;
-      Roll_rate_reference = 2.0*PI/FliRoll_rate_time;
-      Pitch_rate_reference = 0.0;
-      if (Flip_counter > (uint16_t)(FliRoll_rate_time/0.0025) )
+      //Flip
+      Flip_time = 0.4;
+      Pitch_rate_reference= 0.0;
+      domega = 0.0025f*8.0*PI/Flip_time/Flip_time;
+      flip_delay = 150;
+      flip_step = (uint16_t)(Flip_time/0.0025f);
+      if (Flip_counter < flip_delay)
       {
-        Flip_counter = (uint16_t)(FliRoll_rate_time/0.0025);
+        Roll_rate_reference = 0.0f;
+        Thrust_command = T_flip*1.2;
+      }
+      else if (Flip_counter < (flip_step/4 + flip_delay))
+      {
+        Roll_rate_reference = Roll_rate_reference + domega;
+        Thrust_command = T_flip*1.05;
+      }
+      else if (Flip_counter < (2*flip_step/4 + flip_delay))
+      {
+        Roll_rate_reference = Roll_rate_reference + domega;
+        Thrust_command = T_flip*1.0;
+      }
+      else if (Flip_counter < (3*flip_step/4 + flip_delay))
+      {
+        Roll_rate_reference = Roll_rate_reference - domega;
+        Thrust_command = T_flip*1.0;
+      }
+      else if (Flip_counter < (flip_step + flip_delay))
+      {
+        Roll_rate_reference = Roll_rate_reference - domega;
+        Thrust_command = T_flip*1.4;
+      }
+      else if (Flip_counter < (flip_step + flip_delay + 100) )
+      {
+        if(Ahrs_reset_flag == 0) 
+        {
+          Ahrs_reset_flag = 1;
+          ahrs_reset();
+        }
+        Roll_rate_reference = 0.0;
+        Thrust_command=T_flip*1.4;
+      }
+      else
+      {
         Flip_flag = 0;
-        Flip_counter = 0;
+        Ahrs_reset_flag = 0;
       }
       Flip_counter++;
       #endif  
     }
     else
     {
+      //flip reset
+      //Flip_flag = 1;
+      Roll_rate_reference = 0;
+      T_flip = Thrust_command;
+      Ahrs_reset_flag = 0;
+      Flip_counter = 0;
+
       //Angle Control
       Led_color = RED;
       //Get Roll and Pitch angle ref 
-      Roll_angle_reference   = 0.5f * PI * (Roll_angle_command - Aileron_center);
+      Roll_angle_reference  = 0.5f * PI * (Roll_angle_command - Aileron_center);
       Pitch_angle_reference = 0.5f * PI * (Pitch_angle_command - Elevator_center);
       if (Roll_angle_reference > (30.0f*PI/180.0f) ) Roll_angle_reference = 30.0f*PI/180.0f;
       if (Roll_angle_reference <-(30.0f*PI/180.0f) ) Roll_angle_reference =-30.0f*PI/180.0f;
@@ -655,7 +713,7 @@ uint8_t get_arming_button(void)
 {
   static int8_t chatta=0;
   static uint8_t state=0;
-  if( (int)Stick[BUTTON] == 1 )
+  if( (int)Stick[BUTTON_ARM] == 1 )
   { 
     chatta++;
     if(chatta>10){
@@ -676,6 +734,33 @@ uint8_t get_arming_button(void)
   //USBSerial.println(state);
   return state;
 }
+
+uint8_t get_flip_button(void)
+{
+  static int8_t chatta=0;
+  static uint8_t state=0;
+  if( (int)Stick[BUTTON_FLIP] == 1 )
+  { 
+    chatta++;
+    if(chatta>10){
+      chatta=10;
+      state=1;
+    }
+  }
+  else
+  {
+    chatta--;
+    if(chatta<-10)
+    {    
+      chatta=-10;
+      state=0;
+    }
+    
+  }
+  //USBSerial.println(state);
+  return state;
+}
+
 
 void telemetry(void)
 {

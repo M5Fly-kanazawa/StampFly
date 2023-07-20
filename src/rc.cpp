@@ -92,8 +92,8 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *recv_data, int data_len)
   d_int[3] = recv_data[15];
   Stick[ELEVATOR]  = d_float;
 
-  Stick[BUTTON] = recv_data[16];
-  Stick[BUTTON_A] = recv_data[17];
+  Stick[BUTTON_ARM] = recv_data[16];
+  Stick[BUTTON_FLIP] = recv_data[17];
   Stick[CONTROLMODE] = recv_data[18];
   
   Stick[LOG] = 0.0;
