@@ -434,26 +434,6 @@ void get_command(void)
     Flip_flag = get_flip_button();
   }
 
-  #if 0
-  if (Stick[BUTTON_FLIP]==1) BtnA_counter ++;
-  else BtnA_counter --;
-  if (BtnA_counter>20)
-  {
-    BtnA_counter=20;
-    if(BtnA_off_flag==1)
-    {
-      BtnA_on_flag = 1;
-      BtnA_off_flag = 0;
-    }
-  }
-  if (BtnA_counter<-20)
-  {
-    BtnA_counter=-20;
-    BtnA_on_flag = 0;
-    BtnA_off_flag = 1;
-  }
-  #endif
-
   //USBSerial.printf("%5.2f %5.2f %5.2f %5.2f \n\r", 
   //  Stick[THROTTLE], Stick[RUDDER], Stick[AILERON], Stick[ELEVATOR]);
 
