@@ -28,7 +28,7 @@
 #define PARKING_MODE 3
 #define LOG_MODE 4
 
-#define POWER_LIMIT 3.48
+#define POWER_LIMIT 3.46
 #define UNDER_VOLTAGE_COUNT 100
 
 #define ANGLECONTROL 0

@@ -5,15 +5,11 @@
 
 //esp_now_peer_info_t slave;
 
-
-int player = 0;
-int battery = 0;
-float rctime=0.0;
-volatile uint8_t Connect_flag = 0;
+volatile uint16_t Connect_flag = 0;
 
 //Telemetry相手のMAC ADDRESS 4C:75:25:AD:B6:6C
 //ATOM Lite (C): 4C:75:25:AE:27:FC
-const uint8_t addr[6] = {0x4C, 0x75, 0x25, 0xAE, 0x27, 0xFC};
+const uint8_t addr[6] = {0x4C, 0x75, 0x25, 0xAD, 0xB6, 0x6C};
 
 esp_now_peer_info_t peerInfo;
 
@@ -23,7 +19,7 @@ volatile float Stick[16];
 // 受信コールバック
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *recv_data, int data_len) 
 {
-  Connect_flag = 1;
+  Connect_flag=0;
 
   uint8_t* d_int;
   int16_t d_short;
@@ -119,6 +115,13 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *recv_data, int data_len)
 #endif
 
 }
+// 送信コールバック
+uint8_t esp_now_send_status;
+void on_esp_now_sent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  esp_now_send_status = status;
+}
+
+
 
 void rc_init(void)
 {
@@ -150,21 +153,37 @@ void rc_init(void)
 
   // ESP-NOWコールバック登録
   esp_now_register_recv_cb(OnDataRecv);
+  esp_now_register_send_cb(on_esp_now_sent);
   USBSerial.println("ESP-NOW Ready.");
   USBSerial.println("Wait Contoroller ready....");
   //while(Connect_flag==0);
   USBSerial.println("Contoroller ready !");
   esp_wifi_set_channel(5, WIFI_SECOND_CHAN_NONE);
-
-
 }
 
 void telemetry_send(uint8_t* data, uint16_t datalen)
 {
   //uint8_t data[1];
   //data[0]=0xff;
-  esp_err_t result = esp_now_send(peerInfo.peer_addr, data, datalen);
-  //USBSerial.printf("%d\r\n", sizeof(data));
+  static uint32_t cnt=0;
+  static uint8_t error_flag = 0;
+  if (error_flag == 0)
+  {
+    esp_err_t result = esp_now_send(peerInfo.peer_addr, data, datalen);
+    cnt=0;
+  }
+  else cnt++;
+  
+  if (esp_now_send_status==0)error_flag = 0;
+  else error_flag = 1;
+
+  if (cnt>100)
+  {
+    error_flag = 0;
+    cnt = 0;
+  }
+  cnt++;
+  //USBSerial.printf("%6d %d %d\r\n", cnt, error_flag, esp_now_send_status);
 }
 
 void rc_end(void)
@@ -172,35 +191,17 @@ void rc_end(void)
     // Ps3.end();
 }
 
-bool rc_isconnected(void)
+uint8_t rc_isconnected(void)
 {
-    // return Ps3.isConnected();
-    return 1;
+    bool status;
+    Connect_flag++;
+    if (Connect_flag<10)status = 1;
+    else status = 0;
+    //USBSerial.printf("%d \n\r", Connect_flag);
+
+    return status;
 }
 
 void rc_demo()
 {
-    // if(!Ps3.isConnected())
-    //     return;
-
-    // //-------------------- Player LEDs -------------------
-    // USBSerial.print("Setting LEDs to player "); USBSerial.println(player, DEC);
-    // Ps3.setPlayer(player);
-
-    // player += 1;
-    // if(player > 10) player = 0;
-
-    // delay(2000);
 }
-
-
-
-
-
-
-
-
-
-
-
-
