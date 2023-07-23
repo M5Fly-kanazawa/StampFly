@@ -1,6 +1,6 @@
 #include "flight_control.hpp"
 
-#define DEBUG
+//#define DEBUG
 
 //モータPWM出力Pinのアサイン
 //Motor PWM Pin
