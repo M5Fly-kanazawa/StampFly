@@ -2228,14 +2228,14 @@ VL53L0X_Error VL53L0X_GetRangingMeasurementData(
    */
   //Status = VL53L0X_ReadMulti(Dev, 0x14, localBuffer, 12);
 
-  uint16_t tmprange;
-  //uint8_t tmpbuffer[2];
-  Status = VL53L0X_RdWord(Dev, 0x1E, &tmprange);
-  //Status = VL53L0X_ReadMulti(Dev, 0x1E, tmpbuffer, 2);
+  //uint16_t tmprange;
+  uint8_t tmpbuffer[2];
+  //Status = VL53L0X_RdWord(Dev, 0x1E, &tmprange);
+  Status = VL53L0X_ReadMulti(Dev, 0x1E, tmpbuffer, 2);
   Status = 0;
   pRangingMeasurementData->RangeStatus = 0;
-  //pRangingMeasurementData->RangeMilliMeter = ((uint16_t)tmpbuffer[0]*256+(uint16_t)tmpbuffer[1]);
-  pRangingMeasurementData->RangeMilliMeter = tmprange;
+  pRangingMeasurementData->RangeMilliMeter = ((uint16_t)tmpbuffer[0]*256+(uint16_t)tmpbuffer[1]);
+  //pRangingMeasurementData->RangeMilliMeter = tmprange;
 
 #if 0
   if (Status == VL53L0X_ERROR_NONE) {

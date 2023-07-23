@@ -163,13 +163,14 @@ void sensor_init()
 void tof_init(void)
 {
     tof.begin(0x29, false, &Wire1);
+    tof.configSensor(tof.VL53L0X_SENSE_LONG_RANGE);
     tof.setDeviceMode(VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
     tof.setMeasurementTimingBudgetMicroSeconds(33000);
     tof.startRangeContinuous(33);
     while(tof.isRangeComplete()==0);    
     USBSerial.printf("ToF OK Distance=%d\n", tof.readRangeResult());
     //tof.clearInterruptMask();
-    for(uint8_t i=0; i<100; i++)
+    for(uint8_t i=0; i<10; i++)
     {
       uint64_t st,et;
       uint8_t answer=tof.isRangeComplete();
@@ -288,18 +289,18 @@ float sensor_read(void)
   else dcnt++;
   #endif
 
-  float Roll_angle = Roll_angle;
-  float tht = Pitch_angle;
+  //float Roll_angle = Roll_angle;
+  //float tht = Pitch_angle;
   //float Yaw_angle = Yaw_angle;
   //float sRoll_angle = sin(Roll_angle);
-  float cRoll_angle = cos(Roll_angle);
+  float cRoll = cos(Roll_angle);
  // float stht = sin(tht);
-  float ctht = cos(tht);
+  float cPitch = cos(Pitch_angle);
   //float sYaw_angle = sin(Yaw_angle);
   //float sYaw_angle = cos(Yaw_angle);
 
-  float r33 =  cRoll_angle*ctht;
-  Altitude2 = r33*Altitude;
+  float r33 =  cRoll*cPitch;
+  Altitude2 = r33 * Altitude;
   //EstimatedAltitude.update(Altitude2, r33*Accel_z_raw)
 
   uint32_t et =micros();
