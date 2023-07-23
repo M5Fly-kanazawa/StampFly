@@ -30,25 +30,25 @@ const float Control_period = 0.0025f;//400Hz
 
 //PID Gain
 //Rate control PID gain
-const float Roll_rate_kp = 0.65f;
+const float Roll_rate_kp = 0.75f;//0.65
 const float Roll_rate_ti = 0.7f;
-const float Roll_rate_td = 0.03f;
+const float Roll_rate_td = 0.025f;//0.03
 const float Roll_rate_eta = 0.125f;
 
-const float Pitch_rate_kp = 0.65f;
+const float Pitch_rate_kp = 0.75f;//0.65
 const float Pitch_rate_ti = 0.7f;
-const float Pitch_rate_td = 0.03f;
+const float Pitch_rate_td = 0.025f;//0.03
 const float Pitch_rate_eta = 0.125f;
 
-const float Yaw_rate_kp = 3.0f;
+const float Yaw_rate_kp = 3.0f;//
 const float Yaw_rate_ti = 0.8f;
-const float Yaw_rate_td = 0.000f;
+const float Yaw_rate_td = 0.01f;//0.00
 const float Yaw_rate_eta = 0.125f;
 
 //Angle control PID gain
 const float Rall_angle_kp = 8.0f;//12
 const float Rall_angle_ti = 4.0f;
-const float Rall_angle_td = 0.04f;
+const float Rall_angle_td = 0.04f;//0.04
 const float Rall_angle_eta = 0.125f;
 
 const float Pitch_angle_kp = 8.0f;//12
