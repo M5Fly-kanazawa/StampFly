@@ -42,7 +42,7 @@ extern uint8_t OverG_flag;
 extern volatile uint8_t Under_voltage_flag;
 
 void sensor_init(void);
-void sensor_read(void);
+float sensor_read(void);
 void sensor_reset_offset(void);
 void sensor_calc_offset_avarage(void);
 void ahrs_reset(void);

@@ -113,15 +113,13 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *recv_data, int data_len)
                                             Stick[CONTROLMODE],
                                             Stick[LOG]);
 #endif
-
 }
+
 // 送信コールバック
 uint8_t esp_now_send_status;
 void on_esp_now_sent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   esp_now_send_status = status;
 }
-
-
 
 void rc_init(void)
 {
@@ -141,7 +139,6 @@ void rc_init(void)
   }
 
   //ペアリング
-  
   memcpy(peerInfo.peer_addr, addr, 6);
   peerInfo.channel = 5;
   peerInfo.encrypt = false;
@@ -161,22 +158,30 @@ void rc_init(void)
   esp_wifi_set_channel(5, WIFI_SECOND_CHAN_NONE);
 }
 
-void telemetry_send(uint8_t* data, uint16_t datalen)
+uint8_t telemetry_send(uint8_t* data, uint16_t datalen)
 {
-  //uint8_t data[1];
-  //data[0]=0xff;
   static uint32_t cnt=0;
   static uint8_t error_flag = 0;
+  esp_err_t result;
+  uint8_t state;
+
   if (error_flag == 0)
   {
-    esp_err_t result = esp_now_send(peerInfo.peer_addr, data, datalen);
+    result = esp_now_send(peerInfo.peer_addr, data, datalen);
     cnt=0;
   }
   else cnt++;
   
-  if (esp_now_send_status==0)error_flag = 0;
-  else error_flag = 1;
-
+  if (esp_now_send_status == 0)
+  {
+    error_flag = 0;
+    state = 0;
+  }
+  else
+  {
+    error_flag = 1;
+    state = 1;
+  }
   if (cnt>100)
   {
     error_flag = 0;
@@ -184,6 +189,8 @@ void telemetry_send(uint8_t* data, uint16_t datalen)
   }
   cnt++;
   //USBSerial.printf("%6d %d %d\r\n", cnt, error_flag, esp_now_send_status);
+
+  return state;
 }
 
 void rc_end(void)

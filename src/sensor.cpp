@@ -96,7 +96,7 @@ void imu_init(void)
 
   MPU6886 imu;
 
-  Wire1.begin(SDA_PIN, SCL_PIN, 400000UL);
+  //Wire1.begin(SDA_PIN, SCL_PIN, 400000UL);
 
  //F_CHOICE_B
   data = mpu6886_byte_read(MPU6886_GYRO_CONFIG);
@@ -143,8 +143,8 @@ void sensor_init()
 {
   if(init_i2c()==0)
   {
-    Serial.printf("No I2C device!\r\n");
-    Serial.printf("Can not boot AtomFly2.\r\n");
+    USBSerial.printf("No I2C device!\r\n");
+    USBSerial.printf("Can not boot AtomFly2.\r\n");
     while(1);
   }
 
@@ -163,11 +163,28 @@ void sensor_init()
 void tof_init(void)
 {
     tof.begin(0x29, false, &Wire1);
-    tof.setDeviceMode(VL53L0X_DEVICEMODE_SINGLE_RANGING);
+    tof.setDeviceMode(VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
     tof.setMeasurementTimingBudgetMicroSeconds(33000);
-    tof.startMeasurement();
-    while(tof.isRangeComplete()==0);
-    Serial.printf("Distance=%d\n", tof.readRangeResult());
+    tof.startRangeContinuous(33);
+    while(tof.isRangeComplete()==0);    
+    USBSerial.printf("ToF OK Distance=%d\n", tof.readRangeResult());
+    //tof.clearInterruptMask();
+    for(uint8_t i=0; i<100; i++)
+    {
+      uint64_t st,et;
+      uint8_t answer=tof.isRangeComplete();
+      while(answer==0){
+        answer=tof.isRangeComplete();
+      }
+      
+      st=micros();
+      uint16_t range = tof.readRangeResult();
+      et=micros();
+
+      USBSerial.printf("%f %d\n\r",(et-st)*1.0e-6, range);
+    }
+    //USBSerial.printf("\n\r");
+
 }
 
 void start_mesure_distance(void)
@@ -182,7 +199,10 @@ uint8_t is_finish_ranging(void)
 
 uint16_t get_distance(void)
 {
-  return  tof.readRangeResult();
+  uint16_t range;
+  range = tof.readRangeResult();
+  //tof.clearInterruptMask();
+  return  range;
 }
 
 void ahrs_reset(void)
@@ -190,32 +210,16 @@ void ahrs_reset(void)
   Drone_ahrs.reset();
 }
 
-void sensor_read(void)
+float sensor_read(void)
 {
   float ax, ay, az, gx, gy, gz, acc_norm, rate_norm;
   float filterd_v;
   static float dp, dq, dr; 
   static uint16_t dcnt=0u;
   uint16_t dist;
+  const uint8_t interval = 400/30+1;
 
-  //Get Altitude (20Hz)
-  if (dcnt==0)
-  {
-    start_mesure_distance();
-    dcnt = 1u;
-  }
-  else if (dcnt>14)
-  {
-    dcnt++;
-    if(is_finish_ranging())
-    {
-      dist = get_distance();
-      Altitude = dist;
-      dcnt=0u;
-    }
-  }
-  else dcnt++;
-
+  uint32_t st = micros();
   //以下では航空工学の座標軸の取り方に従って
   //X軸：前後（前が正）左肩上がりが回転の正
   //Y軸：右左（右が正）頭上げが回転の正
@@ -267,6 +271,22 @@ void sensor_read(void)
     else Under_voltage_flag = 0;
     if ( Under_voltage_flag > UNDER_VOLTAGE_COUNT) Under_voltage_flag = UNDER_VOLTAGE_COUNT;
   }
+  uint32_t mt=micros();
+  //Altitude
+  
+  #if 1
+  //Get Altitude (20Hz)
+  if (dcnt>interval)
+  {
+    if(is_finish_ranging())
+    {
+      dist = tof.readRangeResult();
+      Altitude = (float)dist;
+      dcnt=0u;
+    }
+  }
+  else dcnt++;
+  #endif
 
   float Roll_angle = Roll_angle;
   float tht = Pitch_angle;
@@ -281,6 +301,11 @@ void sensor_read(void)
   float r33 =  cRoll_angle*ctht;
   Altitude2 = r33*Altitude;
   //EstimatedAltitude.update(Altitude2, r33*Accel_z_raw)
+
+  uint32_t et =micros();
+  //USBSerial.printf("Sensor read %f %f %f\n\r", (mt-st)*1.0e-6, (et-mt)*1e-6, (et-st)*1.0e-6);
+
+  return (et-st)*1.0e-6;
 
 }
 

@@ -1,5 +1,7 @@
 #include "flight_control.hpp"
 
+//#define DEBUG
+
 //モータPWM出力Pinのアサイン
 //Motor PWM Pin
 const int pwmFrontLeft  = 7;
@@ -57,7 +59,8 @@ const float Pitch_angle_eta = 0.125f;
 //Times
 volatile float Elapsed_time=0.0f;
 volatile float Old_Elapsed_time=0.0f;
-volatile uint32_t S_time=0,E_time=0,D_time=0,S_time2=0,E_time2=0,Dt_time=0;
+volatile float Interval_time=0.0f;
+volatile uint32_t S_time=0,E_time=0,D_time=0,Dt_time=0;
 
 //Counter
 uint8_t AngleControlCounter=0;
@@ -128,13 +131,15 @@ PID r_pid;
 PID phi_pid;
 PID theta_pid;
 PID psi_pid;
-CRGB leds[NUM_LEDS];
+CRGB led_esp[NUM_LEDS];
+CRGB led_onboard[NUM_LEDS];
 
 //Function declaration
 void init_pwm();
 void control_init();
 void variable_init(void);
-void m5_atom_led(CRGB p, uint8_t state);
+void onboard_led(CRGB p, uint8_t state);
+void esp_led(CRGB p, uint8_t state);
 void get_command(void);
 void angle_control(void);
 void rate_control(void);
@@ -169,8 +174,12 @@ void init_copter(void)
   Mode = INIT_MODE;
 
   //Initialaze LED function
-  FastLED.addLeds<WS2812, PIN_LED, GRB>(leds, NUM_LEDS);
-  leds[0]=WHITE;
+  FastLED.addLeds<WS2812, PIN_LED_ONBORD, GRB>(led_onboard, NUM_LEDS);
+  FastLED.addLeds<WS2812, PIN_LED_ESP, GRB>(led_esp, NUM_LEDS);
+
+  led_esp[0]=RED;
+  led_onboard[0]=WHITE;
+
   FastLED.show();
 
   //Initialize Serial communication
@@ -198,7 +207,7 @@ void init_copter(void)
 void loop_400Hz(void)
 {
   static uint8_t led=1;
-
+  float sense_time;
   //割り込みにより400Hzで以降のコードが実行
   while(Loop_flag==0);
   Loop_flag = 0;
@@ -206,12 +215,14 @@ void loop_400Hz(void)
   E_time = micros();
   Old_Elapsed_time = Elapsed_time;
   Elapsed_time = 1e-6*(E_time - S_time);
+  Interval_time = Elapsed_time - Old_Elapsed_time;
   Timevalue+=0.0025f;
   
-  led_drive();
-
   //Read Sensor Value
-  sensor_read();
+  sense_time = sensor_read();
+  uint32_t cs_time = micros();
+
+  led_drive();
 
   //Begin Mode select
   if (Mode == INIT_MODE)
@@ -274,8 +285,17 @@ void loop_400Hz(void)
   Telem_cnt++;
   if (Telem_cnt>10-1)Telem_cnt = 0;
 
-  D_time = micros();
-  if(Telem_cnt == 1)Dt_time = D_time - E_time;
+  uint32_t ce_time = micros();
+  //if(Telem_cnt == 1)Dt_time = D_time - E_time;
+  Dt_time = ce_time - cs_time;
+  #ifdef DEBUG
+  USBSerial.printf("Loop time(ms) %5.3f %5.3f %5.3f %5.3f Range %6.1f\n\r", 
+    sense_time*1000.0, 
+    (ce_time - cs_time)*1.0e-3, 
+    (ce_time - cs_time)*1.0e-3 + sense_time*1000.0,
+    Interval_time*1000.0,
+    Altitude );
+  #endif
 
   //End of Loop_400Hz function
 }
@@ -308,7 +328,7 @@ void led_drive(void)
 {
   if (Mode == AVERAGE_MODE)
   {
-    m5_atom_led(PERPLE, 1);
+    onboard_led(PERPLE, 1);
   }
   else if(Mode == FLIGHT_MODE)
   {
@@ -319,24 +339,31 @@ void led_drive(void)
     }
     else Led_color = 0xDC669B;
 
-    if (Under_voltage_flag < UNDER_VOLTAGE_COUNT) m5_atom_led(Led_color, 1);
-    else m5_atom_led(POWEROFFCOLOR,1);
+    if (Under_voltage_flag < UNDER_VOLTAGE_COUNT) onboard_led(Led_color, 1);
+    else onboard_led(POWEROFFCOLOR,1);
   }
   else if (Mode == PARKING_MODE)
   {
     if(LedBlinkCounter<10){
-      if (Under_voltage_flag < UNDER_VOLTAGE_COUNT) m5_atom_led(GREEN, 1);
-      else m5_atom_led(POWEROFFCOLOR,1);
+      if (Under_voltage_flag < UNDER_VOLTAGE_COUNT) onboard_led(GREEN, 1);
+      else onboard_led(POWEROFFCOLOR,1);
       LedBlinkCounter++;
     }
     else if(LedBlinkCounter<100)
     {
-      if (Under_voltage_flag <UNDER_VOLTAGE_COUNT) m5_atom_led(GREEN, 0);
-      else m5_atom_led(POWEROFFCOLOR,0);
+      if (Under_voltage_flag <UNDER_VOLTAGE_COUNT) onboard_led(GREEN, 0);
+      else onboard_led(POWEROFFCOLOR,0);
       LedBlinkCounter++;
     }
     else LedBlinkCounter=0;
   }
+
+  //Watch dog LED
+  if ( Dt_time>2550u )onboard_led(RED, 1);
+
+  //LED show
+  FastLED.show();
+  //USBSerial.printf("Time delta %f\n\r", (Elapsed_time - Old_Elapsed_time) );
 }
 
 
@@ -668,14 +695,25 @@ void set_duty_fl(float duty){ledcWrite(FrontLeft_motor, (uint32_t)(255*duty));}
 void set_duty_rr(float duty){ledcWrite(RearRight_motor, (uint32_t)(255*duty));}
 void set_duty_rl(float duty){ledcWrite(RearLeft_motor, (uint32_t)(255*duty));}
 
-void m5_atom_led(CRGB p, uint8_t state)
+void onboard_led(CRGB p, uint8_t state)
 {
-  if (state ==1) leds[0]=p;
-  else leds[0]=0;
+  if (state ==1) led_onboard[0]=p;
+  else led_onboard[0]=0;
    //Update LED
-  FastLED.show();
+  //FastLED.show();
   return;
 }
+
+void esp_led(CRGB p, uint8_t state)
+{
+  if (state ==1) led_esp[0]=p;
+  else led_esp[0]=0;
+   //Update LED
+  //FastLED.show();
+  return;
+}
+
+
 
 void init_pwm(void)
 {
@@ -904,7 +942,7 @@ void telemetry(void)
     data2log(senddata, Elapsed_time, index);
     index = index + 4;
     //2 delta Time
-    data2log(senddata, 1e-6*Dt_time, index);
+    data2log(senddata, Interval_time, index);
     index = index + 4;
     //3 Roll_angle
     data2log(senddata, (Roll_angle-Roll_angle_offset)*180/PI, index);
@@ -976,7 +1014,8 @@ void telemetry(void)
     index = index + 4;
 
     //Send !
-    telemetry_send(senddata, sizeof(senddata));
+    if(telemetry_send(senddata, sizeof(senddata))==1)esp_led(0x110000, 1);//Telemetory Reciver OFF
+    else esp_led(0x001100, 1);//Telemetory Reciver ON
   }
 }
 

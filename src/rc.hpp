@@ -43,7 +43,7 @@ void rc_init(void);
 void rc_demo(void);
 void rc_end(void);
 uint8_t rc_isconnected(void);
-void telemetry_send(uint8_t* data, uint16_t datalen);
+uint8_t telemetry_send(uint8_t* data, uint16_t datalen);
 
 extern volatile float Stick[16];
 
