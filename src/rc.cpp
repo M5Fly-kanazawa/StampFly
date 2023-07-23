@@ -162,10 +162,11 @@ uint8_t telemetry_send(uint8_t* data, uint16_t datalen)
 {
   static uint32_t cnt=0;
   static uint8_t error_flag = 0;
-  esp_err_t result;
-  uint8_t state;
+  static uint8_t state=0;
 
-  if (error_flag == 0)
+  esp_err_t result;
+
+  if ((error_flag == 0)&&(state==0))
   {
     result = esp_now_send(peerInfo.peer_addr, data, datalen);
     cnt=0;
@@ -175,10 +176,11 @@ uint8_t telemetry_send(uint8_t* data, uint16_t datalen)
   if (esp_now_send_status == 0)
   {
     error_flag = 0;
-    state = 0;
+    //state = 0;
   }
   else
   {
+    //送信でエラーが一度でも出た場合はそれ以降stateは１になる。
     error_flag = 1;
     state = 1;
   }
