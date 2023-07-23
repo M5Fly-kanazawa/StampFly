@@ -4,9 +4,9 @@
 #include "flight_control.hpp"
 #include "pid.hpp"
 #include <INA3221.h>
-#include "MadgwickAHRS.h"
+#include <MadgwickAHRS.h>
 #include <Adafruit_VL53L0X.h>
-#include "MPU6886.h"
+#include <MPU6886.h>
 #include <stdint.h>
 #include "alt_kalman.hpp"
 
