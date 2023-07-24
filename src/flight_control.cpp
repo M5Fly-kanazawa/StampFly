@@ -154,10 +154,11 @@ void set_duty_fr(float duty);
 void set_duty_fl(float duty);
 void set_duty_rr(float duty);
 void set_duty_rl(float duty);
-void telemetry(void);
 void float2byte(float x, uint8_t* dst);
 void append_data(uint8_t* data , uint8_t* newdata, uint8_t index, uint8_t len);
 void data2log(uint8_t* data_list, float add_data, uint8_t index);
+void telemetry(void);
+void telemetry_sequence(void);
 void make_telemetry_data(uint8_t* senddata);
 void make_telemetry_header_data(uint8_t* senddata);
 
@@ -283,9 +284,7 @@ void loop_400Hz(void)
   }
 
   //Telemetry
-  if (Telem_cnt == 0)telemetry();
-  Telem_cnt++;
-  if (Telem_cnt>10-1)Telem_cnt = 0;
+  telemetry();
 
   uint32_t ce_time = micros();
   //if(Telem_cnt == 1)Dt_time = D_time - E_time;
@@ -787,7 +786,6 @@ void telemetry(void)
 {
   uint8_t senddata[MAXINDEX]; 
 
-  //Telemetry
   if(Telem_mode==0)
   {
     Telem_mode = 1;
@@ -798,12 +796,30 @@ void telemetry(void)
   }  
   else if(Mode > AVERAGE_MODE)
   {
-    make_telemetry_data(senddata);
-    //Send !
-    if(telemetry_send(senddata, sizeof(senddata))==1)esp_led(0x110000, 1);//Telemetory Reciver OFF
-    else esp_led(0x001100, 1);//Telemetory Reciver ON
+    if (Telem_cnt == 0)telemetry_sequence();
+    Telem_cnt++;
+    if (Telem_cnt>10-1)Telem_cnt = 0;
   }
 }
+
+
+void telemetry_sequence(void)
+{
+  uint8_t senddata[MAXINDEX]; 
+
+  switch (Telem_mode)
+  {
+    case 1:
+      make_telemetry_data(senddata);
+      //Send !
+      if(telemetry_send(senddata, sizeof(senddata))==1)esp_led(0x110000, 1);//Telemetory Reciver OFF
+      else esp_led(0x001100, 1);//Telemetory Reciver ON
+
+      //Telem_mode = 2;
+      break;
+  }
+}
+
 
 void make_telemetry_header_data(uint8_t* senddata)
 {
@@ -947,7 +963,6 @@ void make_telemetry_header_data(uint8_t* senddata)
     //float2byte(d_float, d_int);
     //append_data(senddata, d_int, index, 4);
     index = index + 4;
-
 }
 
 void make_telemetry_data(uint8_t* senddata)
