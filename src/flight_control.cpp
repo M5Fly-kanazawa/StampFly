@@ -31,12 +31,12 @@ const float Control_period = 0.0025f;//400Hz
 //PID Gain
 //Rate control PID gain
 const float Roll_rate_kp = 0.6f;//0.65
-const float Roll_rate_ti = 0.7f;
+const float Roll_rate_ti = 0.7f;//0.7
 const float Roll_rate_td = 0.01;//0.03
 const float Roll_rate_eta = 0.125f;
 
 const float Pitch_rate_kp = 0.75f;//0.65
-const float Pitch_rate_ti = 0.7f;
+const float Pitch_rate_ti = 0.7f;//0.7
 const float Pitch_rate_td = 0.025f;//0.03
 const float Pitch_rate_eta = 0.125f;
 
@@ -284,7 +284,7 @@ void loop_400Hz(void)
   }
 
   //Telemetry
-  telemetry();
+  //telemetry();
 
   uint32_t ce_time = micros();
   //if(Telem_cnt == 1)Dt_time = D_time - E_time;
