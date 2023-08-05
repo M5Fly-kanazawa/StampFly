@@ -14,11 +14,14 @@ Adafruit_VL53L0X tof = Adafruit_VL53L0X();
 volatile float Roll_angle=0.0f, Pitch_angle=0.0f, Yaw_angle=0.0f;
 volatile float Roll_rate, Pitch_rate, Yaw_rate;
 volatile float Roll_rate_offset=0.0f, Pitch_rate_offset=0.0f, Yaw_rate_offset=0.0f;
+volatile float Accel_z;
+volatile float Accel_z_offset=0.0f;
 volatile float Accel_x_raw,Accel_y_raw,Accel_z_raw;
 volatile float Roll_rate_raw,Pitch_rate_raw,Yaw_rate_raw;
 volatile float Mx,My,Mz,Mx0,My0,Mz0,Mx_ave,My_ave,Mz_ave;
 volatile float Altitude = 0.0f;
 volatile float Altitude2 = 0.0f;
+volatile float Alt_velocity = 0.0f;
 volatile uint16_t Offset_counter = 0;
 
 volatile float Voltage;
@@ -128,6 +131,7 @@ void sensor_reset_offset(void)
   Roll_rate_offset = 0.0f;
   Pitch_rate_offset = 0.0f;
   Yaw_rate_offset = 0.0f;
+  Accel_z_offset = 0.0f;
   Offset_counter = 0;
 }
 
@@ -136,6 +140,8 @@ void sensor_calc_offset_avarage(void)
   Roll_rate_offset = (Offset_counter * Roll_rate_offset + Roll_rate_raw) / (Offset_counter + 1);
   Pitch_rate_offset = (Offset_counter * Pitch_rate_offset + Pitch_rate_raw) / (Offset_counter + 1);
   Yaw_rate_offset = (Offset_counter * Yaw_rate_offset + Yaw_rate_raw) / (Offset_counter + 1);
+  Accel_z_offset = (Offset_counter * Accel_z_offset + Accel_z_raw) / (Offset_counter + 1);
+
   Offset_counter++;
 }
 
@@ -252,6 +258,7 @@ float sensor_read(void)
   Roll_rate  = Roll_rate_raw - Roll_rate_offset;
   Pitch_rate = Pitch_rate_raw - Pitch_rate_offset;
   Yaw_rate   = Yaw_rate_raw - Yaw_rate_offset;
+  Accel_z = Accel_z_raw - Accel_z_offset;
 
   #if 1
   acc_norm = sqrt(Accel_x_raw*Accel_x_raw + Accel_y_raw*Accel_y_raw + Accel_z_raw*Accel_z_raw);
@@ -276,7 +283,7 @@ float sensor_read(void)
   //Altitude
   
   #if 1
-  //Get Altitude (20Hz)
+  //Get Altitude (30Hz)
   if (dcnt>interval)
   {
     if(is_finish_ranging())
@@ -285,6 +292,9 @@ float sensor_read(void)
       Altitude = (float)dist;
       dcnt=0u;
     }
+    EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
+    Altitude2 = EstimatedAltitude.Altitude;
+    Alt_velocity = EstimatedAltitude.Velocity;
   }
   else dcnt++;
   #endif
@@ -293,14 +303,14 @@ float sensor_read(void)
   //float tht = Pitch_angle;
   //float Yaw_angle = Yaw_angle;
   //float sRoll_angle = sin(Roll_angle);
-  float cRoll = cos(Roll_angle);
+  //float cRoll = cos(Roll_angle);
  // float stht = sin(tht);
-  float cPitch = cos(Pitch_angle);
+  //float cPitch = cos(Pitch_angle);
   //float sYaw_angle = sin(Yaw_angle);
   //float sYaw_angle = cos(Yaw_angle);
 
-  float r33 =  cRoll*cPitch;
-  Altitude2 = r33 * Altitude;
+  //float r33 =  cRoll*cPitch;
+  //Altitude2 = r33 * Altitude;
   //EstimatedAltitude.update(Altitude2, r33*Accel_z_raw)
 
   uint32_t et =micros();

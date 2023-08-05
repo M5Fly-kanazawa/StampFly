@@ -131,6 +131,7 @@ PID r_pid;
 PID phi_pid;
 PID theta_pid;
 PID psi_pid;
+PID alt;
 CRGB led_esp[NUM_LEDS];
 CRGB led_onboard[NUM_LEDS];
 
@@ -284,7 +285,7 @@ void loop_400Hz(void)
   }
 
   //Telemetry
-  //telemetry();
+  telemetry();
 
   uint32_t ce_time = micros();
   //if(Telem_cnt == 1)Dt_time = D_time - E_time;
@@ -403,6 +404,8 @@ void control_init(void)
   //Angle control
   phi_pid.set_parameter  (Rall_angle_kp, Rall_angle_ti, Rall_angle_td, Rall_angle_eta, Control_period);//Roll angle control gain
   theta_pid.set_parameter(Pitch_angle_kp, Pitch_angle_ti, Pitch_angle_td, Pitch_angle_eta, Control_period);//Pitch angle control gain
+
+
 
 }
 ///////////////////////////////////////////////////////////////////
@@ -1033,8 +1036,8 @@ void make_telemetry_data(uint8_t* senddata)
   //18 Accel_z_raw
   data2log(senddata, Accel_z_raw, index);
   index = index + 4;
-  //19 Acc Norm
-  data2log(senddata, Acc_norm, index);
+  //19 Alt Velocity
+  data2log(senddata, Alt_velocity, index);
   index = index + 4;
   //20 FrontRight_motor_duty
   data2log(senddata, FrontRight_motor_duty, index);
@@ -1046,7 +1049,9 @@ void make_telemetry_data(uint8_t* senddata)
   data2log(senddata, RearRight_motor_duty, index);
   index = index + 4;
   //23 RearLeft_motor_duty
-  data2log(senddata, RearLeft_motor_duty, index);
+  //data2log(senddata, RearLeft_motor_duty, index);
+  //23 RearLeft_motor_duty
+  data2log(senddata, Altitude, index);
   index = index + 4;
   //24 Altitude2
   data2log(senddata, Altitude2, index);

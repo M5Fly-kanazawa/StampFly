@@ -21,25 +21,25 @@ class Alt_kalman
     float f11=1.0, f12=0.0, f21=step, f22=1.0;
 
     //H
-    double h1=0.0, h2=1.0;
+    float h1=0.0, h2=1.0;
 
     //P
-    double p11=1.0, p12=1.0, p21=1.0, p22=1.0;
-    double p11_, p12_, p21_, p22_;
+    float p11=100.0, p12=100.0, p21=100.0, p22=100.0;
+    float p11_, p12_, p21_, p22_;
 
     //Q
-    double q1=(1.0e-3)*(1.0e-3), q2=(1.0e-3)*(1.0e-3);
+    float q1=(0.04)*(0.04), q2=(1.0e-3)*(1.0e-3);
 
     //R
-    double R = 0.02*0.02;
+    float R = 0.05*0.05;
 
     public:
     //setep
-    double step=1/30;
+    float step=0.035;
     //state
-    double Velocity=0.0, Altitude=0.0;
+    float Velocity=0.0, Altitude=0.0;
     Alt_kalman();
-    void update(double z_sens, double accel);
+    void update(float z_sens, float accel);
 
 };
 

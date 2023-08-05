@@ -5,7 +5,7 @@
 
 Alt_kalman::Alt_kalman(){};
 
-void Alt_kalman::update(double z_sens, double accel)
+void Alt_kalman::update(float z_sens, float accel)
 {
         //x:estimate x_:predict
 

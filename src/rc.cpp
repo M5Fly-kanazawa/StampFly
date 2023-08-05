@@ -9,7 +9,8 @@ volatile uint16_t Connect_flag = 0;
 
 //Telemetry相手のMAC ADDRESS 4C:75:25:AD:B6:6C
 //ATOM Lite (C): 4C:75:25:AE:27:FC
-const uint8_t addr[6] = {0x4C, 0x75, 0x25, 0xAD, 0xB6, 0x6C};
+//4C:75:25:AD:8B:20
+const uint8_t addr[6] = {0x4C, 0x75, 0x25, 0xAD, 0x8B, 0x20};
 
 esp_now_peer_info_t peerInfo;
 
