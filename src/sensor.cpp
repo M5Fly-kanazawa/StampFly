@@ -22,6 +22,7 @@ volatile float Mx,My,Mz,Mx0,My0,Mz0,Mx_ave,My_ave,Mz_ave;
 volatile float Altitude = 0.0f;
 volatile float Altitude2 = 0.0f;
 volatile float Alt_velocity = 0.0f;
+volatile uint8_t Alt_ok = 0;
 volatile uint16_t Offset_counter = 0;
 
 volatile float Voltage;
@@ -291,6 +292,7 @@ float sensor_read(void)
       dist = tof.readRangeResult();
       Altitude = (float)dist;
       dcnt=0u;
+      Alt_ok = 1;
     }
     EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
     Altitude2 = EstimatedAltitude.Altitude;

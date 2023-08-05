@@ -56,6 +56,19 @@ const float Pitch_angle_ti = 4.0f;
 const float Pitch_angle_td = 0.04f;
 const float Pitch_angle_eta = 0.125f;
 
+//Altitude control PID gain
+const float alt_kp = 0.015f;
+const float alt_ti = 100000.0f;
+const float alt_td = 0.015f;
+const float alt_eta = 0.125f;
+const float alt_period = 0.035;
+const float z_dot_kp = 1.0f;//12
+const float z_dot_ti = 100000.0f;
+const float z_dot_td = 0.01f;
+const float z_dot_eta = 0.125f;
+const float Thrust0_nominal = 0.645;
+uint8_t Alt_flag = 0;
+
 //Times
 volatile float Elapsed_time=0.0f;
 volatile float Old_Elapsed_time=0.0f;
@@ -87,12 +100,16 @@ volatile float Roll_angle_reference=0.0f, Pitch_angle_reference=0.0f, Yaw_angle_
 //スロットル指令値
 //Throttle
 volatile float Thrust_command=0.0f;
+volatile float Thrust0=0.0;
 //角速度指令値
 //Rate command
 volatile float Roll_rate_command=0.0f, Pitch_rate_command=0.0f, Yaw_rate_command=0.0f;
 //角度指令値
 //Angle comannd
 volatile float Roll_angle_command=0.0f, Pitch_angle_command=0.0f, Yaw_angle_command=0.0f;
+//高度目標
+volatile float Alt_ref = 0.25;
+
 
 //Offset
 volatile float Roll_angle_offset=0.0f, Pitch_angle_offset=0.0f, Yaw_angle_offset=0.0f;  
@@ -131,7 +148,8 @@ PID r_pid;
 PID phi_pid;
 PID theta_pid;
 PID psi_pid;
-PID alt;
+PID alt_pid;
+PID z_dot_pid;
 CRGB led_esp[NUM_LEDS];
 CRGB led_onboard[NUM_LEDS];
 
@@ -162,6 +180,7 @@ void telemetry(void);
 void telemetry_sequence(void);
 void make_telemetry_data(uint8_t* senddata);
 void make_telemetry_header_data(uint8_t* senddata);
+float altitude_control(void);
 
 //割り込み関数
 //Intrupt function
@@ -281,6 +300,8 @@ void loop_400Hz(void)
     motor_stop();
     OverG_flag = 0;
     Angle_control_flag = 0;
+    Thrust0 = 0.0;
+    Alt_flag = 0;
     
   }
 
@@ -405,7 +426,9 @@ void control_init(void)
   phi_pid.set_parameter  (Rall_angle_kp, Rall_angle_ti, Rall_angle_td, Rall_angle_eta, Control_period);//Roll angle control gain
   theta_pid.set_parameter(Pitch_angle_kp, Pitch_angle_ti, Pitch_angle_td, Pitch_angle_eta, Control_period);//Pitch angle control gain
 
-
+  //Altitude control
+  alt_pid.set_parameter(alt_kp, alt_ti, alt_td, alt_eta, alt_period);
+  z_dot_pid.set_parameter(z_dot_kp, z_dot_ti, z_dot_td, alt_eta, alt_period);
 
 }
 ///////////////////////////////////////////////////////////////////
@@ -425,10 +448,25 @@ void get_command(void)
   float throttle_limit = 0.7;
   float thlo = Stick[THROTTLE];
   thlo = thlo/throttle_limit;
+
+  if ( (0.2 > thlo) && (thlo > -0.2) )thlo = 0.0f ;
   if (thlo>1.0f) thlo = 1.0f;
-  if (thlo<0.2f) thlo = 0.0f;
+  if (thlo<-1.0f) thlo =-1.0f;
   //Thrust_command = (2.95f*thlo-4.8f*thlo*thlo+2.69f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  Thrust_command = (2.97f*thlo-4.94f*thlo*thlo+2.86f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
+  //Thrust_command = (2.97f*thlo-4.94f*thlo*thlo+2.86f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
+  Alt_ref = Alt_ref + (1.0/400.0) * thlo;
+  if(Alt_ref>1.0)Alt_ref=1.0;
+  if(Alt_ref<0.0)Alt_ref=0.0;
+  
+  //Altitude control
+  Thrust0 = Thrust0 + 1.0/(400.0*2);
+  if (Thrust0>Thrust0_nominal)Thrust0 = Thrust0_nominal;
+  if(Alt_flag==0)
+  {
+    if(Altitude2<Alt_ref)Thrust_command = Thrust0 * BATTERY_VOLTAGE;
+    else Alt_flag = 1; 
+  }
+  else Thrust_command = (Thrust0 + altitude_control())*BATTERY_VOLTAGE;
 
   //Thrust_command = thlo*BATTERY_VOLTAGE;
 
@@ -489,6 +527,7 @@ void rate_control(void)
       p_pid.reset();
       q_pid.reset();
       r_pid.reset();
+      alt_pid.reset();
       Roll_rate_reference = 0.0f;
       Pitch_rate_reference = 0.0f;
       Yaw_rate_reference = 0.0f;
@@ -516,7 +555,7 @@ void rate_control(void)
       Roll_rate_command = p_pid.update(p_err);
       Pitch_rate_command = q_pid.update(q_err);
       Yaw_rate_command = r_pid.update(r_err);
-
+      
       //Motor Control
       //正規化Duty
       FrontRight_motor_duty = (Thrust_command +(-Roll_rate_command +Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
@@ -692,6 +731,18 @@ void angle_control(void)
       Pitch_rate_reference = theta_pid.update(theta_err);
     } 
   }
+}
+
+float altitude_control(void)
+{
+  static float u = 0.0f;
+  if(Alt_ok)
+  {
+    Alt_ok = 0;
+    float alt_err = Alt_ref - Altitude2;
+    u = alt_pid.update(alt_err);
+  }
+  return u;
 }
 
 void set_duty_fr(float duty){ledcWrite(FrontRight_motor, (uint32_t)(255*duty));}
@@ -1021,8 +1072,8 @@ void make_telemetry_data(uint8_t* senddata)
   //13 R ref
   data2log(senddata, Yaw_rate_reference*180/PI, index);
   index = index + 4;
-  //14 T ref
-  data2log(senddata, Thrust_command/BATTERY_VOLTAGE, index);
+  //14 Alt_ref(T ref)
+  data2log(senddata, Alt_ref, index);
   index = index + 4;
   //15 Voltage
   data2log(senddata, Voltage, index);
