@@ -57,17 +57,20 @@ const float Pitch_angle_td = 0.04f;
 const float Pitch_angle_eta = 0.125f;
 
 //Altitude control PID gain
-const float alt_kp = 0.015f;
-const float alt_ti = 100000.0f;
+const float alt_kp = 0.5f;
+const float alt_ti = 1000.0f;
 const float alt_td = 0.015f;
 const float alt_eta = 0.125f;
 const float alt_period = 0.035;
-const float z_dot_kp = 1.0f;//12
-const float z_dot_ti = 100000.0f;
+//
+const float z_dot_kp = 0.5f;//12
+const float z_dot_ti = 1000.0f;
 const float z_dot_td = 0.01f;
 const float z_dot_eta = 0.125f;
-const float Thrust0_nominal = 0.645;
+//Altitude Control variables
+const float Thrust0_nominal = 0.63;
 uint8_t Alt_flag = 0;
+float Z_dot_ref = 0.0f;
 
 //Times
 volatile float Elapsed_time=0.0f;
@@ -108,8 +111,7 @@ volatile float Roll_rate_command=0.0f, Pitch_rate_command=0.0f, Yaw_rate_command
 //Angle comannd
 volatile float Roll_angle_command=0.0f, Pitch_angle_command=0.0f, Yaw_angle_command=0.0f;
 //高度目標
-volatile float Alt_ref = 0.25;
-
+volatile float Alt_ref = 0.4;
 
 //Offset
 volatile float Roll_angle_offset=0.0f, Pitch_angle_offset=0.0f, Yaw_angle_offset=0.0f;  
@@ -179,8 +181,9 @@ void data2log(uint8_t* data_list, float add_data, uint8_t index);
 void telemetry(void);
 void telemetry_sequence(void);
 void make_telemetry_data(uint8_t* senddata);
+void make_telemetry_data2(uint8_t* senddata);
 void make_telemetry_header_data(uint8_t* senddata);
-float altitude_control(void);
+float altitude_control(uint8_t resetflag);
 
 //割り込み関数
 //Intrupt function
@@ -302,6 +305,7 @@ void loop_400Hz(void)
     Angle_control_flag = 0;
     Thrust0 = 0.0;
     Alt_flag = 0;
+    Alt_ref = 0.25f;
     
   }
 
@@ -455,18 +459,18 @@ void get_command(void)
   //Thrust_command = (2.95f*thlo-4.8f*thlo*thlo+2.69f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
   //Thrust_command = (2.97f*thlo-4.94f*thlo*thlo+2.86f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
   Alt_ref = Alt_ref + (1.0/400.0) * thlo;
-  if(Alt_ref>1.0)Alt_ref=1.0;
+  if(Alt_ref>7.0)Alt_ref=7.0;
   if(Alt_ref<0.0)Alt_ref=0.0;
   
   //Altitude control
-  Thrust0 = Thrust0 + 1.0/(400.0*2);
-  if (Thrust0>Thrust0_nominal)Thrust0 = Thrust0_nominal;
   if(Alt_flag==0)
   {
-    if(Altitude2<Alt_ref)Thrust_command = Thrust0 * BATTERY_VOLTAGE;
+    Thrust0 = Thrust0 + 1.0/(400.0*2);
+    if (Thrust0>Thrust0_nominal) Thrust0 = Thrust0_nominal;
+    if (Altitude2<0.15) Thrust_command = Thrust0 * BATTERY_VOLTAGE;
     else Alt_flag = 1; 
   }
-  else Thrust_command = (Thrust0 + altitude_control())*BATTERY_VOLTAGE;
+  else Thrust_command = (Thrust0 + altitude_control(0))*BATTERY_VOLTAGE;
 
   //Thrust_command = thlo*BATTERY_VOLTAGE;
 
@@ -524,14 +528,17 @@ void rate_control(void)
       RearRight_motor_duty = 0.0;
       RearLeft_motor_duty = 0.0;
       motor_stop();
+      altitude_control(1);
       p_pid.reset();
       q_pid.reset();
       r_pid.reset();
       alt_pid.reset();
+      z_dot_pid.reset();
       Roll_rate_reference = 0.0f;
       Pitch_rate_reference = 0.0f;
       Yaw_rate_reference = 0.0f;
       Rudder_center   = Yaw_angle_command;
+      Z_dot_ref = 0.0f;
     }
     else
     {
@@ -733,14 +740,22 @@ void angle_control(void)
   }
 }
 
-float altitude_control(void)
+float altitude_control(uint8_t reset_flag)
 {
-  static float u = 0.0f;
-  if(Alt_ok)
+  static float u =0.0f;
+  if (reset_flag == 1)
   {
-    Alt_ok = 0;
+    u = 0.0;
+    alt_pid.reset();
+    z_dot_pid.reset();
+  }
+  else if(Alt_control_ok == 1)
+  {
+    Alt_control_ok = 0;
     float alt_err = Alt_ref - Altitude2;
-    u = alt_pid.update(alt_err);
+    Z_dot_ref = alt_pid.update(alt_err);
+    float z_dot_err = Z_dot_ref - Alt_velocity;
+    u = z_dot_pid.update(z_dot_err);
   }
   return u;
 }
@@ -864,7 +879,7 @@ void telemetry_sequence(void)
   switch (Telem_mode)
   {
     case 1:
-      make_telemetry_data(senddata);
+      make_telemetry_data2(senddata);
       //Send !
       if(telemetry_send(senddata, sizeof(senddata))==1)esp_led(0x110000, 1);//Telemetory Reciver OFF
       else esp_led(0x001100, 1);//Telemetory Reciver ON
@@ -1108,6 +1123,99 @@ void make_telemetry_data(uint8_t* senddata)
   data2log(senddata, Altitude2, index);
   index = index + 4;
 }
+
+void make_telemetry_data2(uint8_t* senddata)
+{
+  const uint8_t MAXINDEX=98;
+  float d_float;
+  uint8_t d_int[4];
+  //uint8_t senddata[MAXINDEX]; 
+  uint8_t index=0;  
+
+  //Telemetry Header
+  senddata[0]=88;
+  senddata[1]=88;
+  index = 2;
+  //1 Time
+  data2log(senddata, Elapsed_time, index);
+  index = index + 4;
+  //2 delta Time
+  data2log(senddata, Interval_time, index);
+  index = index + 4;
+  //3 Roll_angle
+  data2log(senddata, (Roll_angle-Roll_angle_offset)*180/PI, index);
+  index = index + 4;
+  //4 Pitch_angle
+  data2log(senddata, (Pitch_angle-Pitch_angle_offset)*180/PI, index);
+  index = index + 4;
+  //5 Yaw_angle
+  data2log(senddata, (Yaw_angle-Yaw_angle_offset)*180/PI, index);
+  index = index + 4;
+  //6 P
+  data2log(senddata, (Roll_rate)*180/PI, index);
+  index = index + 4;
+  //7 Q
+  data2log(senddata, (Pitch_rate)*180/PI, index);
+  index = index + 4;
+  //8 R
+  data2log(senddata, (Yaw_rate)*180/PI, index);
+  index = index + 4;
+  //9 Roll_angle_reference
+  data2log(senddata, Roll_angle_reference*180/PI, index);
+  //data2log(senddata, 0.5f * 180.0f *Roll_angle_command, index);
+  index = index + 4;
+  //10 Pitch_angle_reference
+  data2log(senddata, Pitch_angle_reference*180/PI, index);
+  //data2log(senddata, 0.5 * 189.0f* Pitch_angle_command, index);
+  index = index + 4;
+  //11 P ref
+  data2log(senddata, Roll_rate_reference*180/PI, index);
+  index = index + 4;
+  //12 Q ref
+  data2log(senddata, Pitch_rate_reference*180/PI, index);
+  index = index + 4;
+  //13 R ref
+  data2log(senddata, Yaw_rate_reference*180/PI, index);
+  index = index + 4;
+  //14 Thrust_command
+  data2log(senddata, Thrust_command, index);
+  index = index + 4;
+  //15 Voltage
+  data2log(senddata, Voltage, index);
+  index = index + 4;
+  //16 Accel_x_raw
+  data2log(senddata, Accel_x_raw, index);
+  index = index + 4;
+  //17 Accel_y_raw
+  data2log(senddata, Accel_y_raw, index);
+  index = index + 4;
+  //18 Accel_z_raw
+  data2log(senddata, Accel_z_raw, index);
+  index = index + 4;
+  //19 Alt Velocity
+  data2log(senddata, Alt_velocity, index);
+  index = index + 4;
+  //20 Thurst0
+  data2log(senddata, Thrust0, index);
+  index = index + 4;
+  //21 Z_dot_ref
+  data2log(senddata, Z_dot_ref, index);
+  index = index + 4;
+  //22 Alt_ref
+  data2log(senddata, Alt_ref, index);
+  index = index + 4;
+  //23 RearLeft_motor_duty
+  //data2log(senddata, RearLeft_motor_duty, index);
+  //23 RearLeft_motor_duty
+  data2log(senddata, Altitude/1000.0, index);
+  index = index + 4;
+  //24 Altitude2
+  data2log(senddata, Altitude2, index);
+  index = index + 4;
+}
+
+
+
 
 void data2log(uint8_t* data_list, float add_data, uint8_t index)
 {

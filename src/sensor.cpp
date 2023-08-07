@@ -22,7 +22,7 @@ volatile float Mx,My,Mz,Mx0,My0,Mz0,Mx_ave,My_ave,Mz_ave;
 volatile float Altitude = 0.0f;
 volatile float Altitude2 = 0.0f;
 volatile float Alt_velocity = 0.0f;
-volatile uint8_t Alt_ok = 0;
+volatile uint8_t Alt_control_ok = 0;
 volatile uint16_t Offset_counter = 0;
 
 volatile float Voltage;
@@ -169,17 +169,52 @@ void sensor_init()
 
 void tof_init(void)
 {
-    tof.begin(0x29, false, &Wire1);
-    tof.configSensor(tof.VL53L0X_SENSE_LONG_RANGE);
-    tof.setDeviceMode(VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
+    tof.begin(0x29, false, &Wire1);    
+    //Set LongRangeMode
+    tof.setLimitCheckValue(VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE,(FixPoint1616_t)(0.1 * 65536));
     tof.setMeasurementTimingBudgetMicroSeconds(33000);
-    tof.startRangeContinuous(33);
+    tof.setVcselPulsePeriod(VL53L0X_VCSEL_PERIOD_PRE_RANGE, 18);
+    tof.setVcselPulsePeriod(VL53L0X_VCSEL_PERIOD_FINAL_RANGE, 14);
+    //Set continuas ranging
+    //tof.setDeviceMode(VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
+
+
+    #if 0
+    //VL53L0X_SetLimitCheckValue(
+    //    pMyDevice, VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE,
+    //    (FixPoint1616_t)(0.1 * 65536));
+    if (Status == VL53L0X_ERROR_NONE) {
+      Status = VL53L0X_SetLimitCheckValue(pMyDevice,
+                                          VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE,
+                                          (FixPoint1616_t)(60 * 65536));
+    }
+    if (Status == VL53L0X_ERROR_NONE) {
+      Status = VL53L0X_SetMeasurementTimingBudgetMicroSeconds(pMyDevice, 33000);
+    }
+
+    if (Status == VL53L0X_ERROR_NONE) {
+      Status = VL53L0X_SetVcselPulsePeriod(pMyDevice,
+                                           VL53L0X_VCSEL_PERIOD_PRE_RANGE, 18);
+    }
+    if (Status == VL53L0X_ERROR_NONE) {
+      Status = VL53L0X_SetVcselPulsePeriod(
+          pMyDevice, VL53L0X_VCSEL_PERIOD_FINAL_RANGE, 14);
+    }
+  #endif
+
+    //tof.configSensor(tof.VL53L0X_SENSE_LONG_RANGE);
+    //tof.setMeasurementTimingBudgetMicroSeconds(33000);
+    //tof.startRangeContinuous(33);
+    tof.startMeasurement();
     while(tof.isRangeComplete()==0);    
     USBSerial.printf("ToF OK Distance=%d\n", tof.readRangeResult());
     //tof.clearInterruptMask();
     for(uint8_t i=0; i<10; i++)
     {
       uint64_t st,et;
+
+      tof.startMeasurement();
+      
       uint8_t answer=tof.isRangeComplete();
       while(answer==0){
         answer=tof.isRangeComplete();
@@ -190,6 +225,7 @@ void tof_init(void)
       et=micros();
 
       USBSerial.printf("%f %d\n\r",(et-st)*1.0e-6, range);
+      
     }
     //USBSerial.printf("\n\r");
 
@@ -285,18 +321,21 @@ float sensor_read(void)
   
   #if 1
   //Get Altitude (30Hz)
+  if (dcnt == 0) tof.startMeasurement();
   if (dcnt>interval)
   {
     if(is_finish_ranging())
     {
       dist = tof.readRangeResult();
+      if(dist>2000)dist = (uint16_t)Altitude;
       Altitude = (float)dist;
       dcnt=0u;
-      Alt_ok = 1;
+      Alt_control_ok = 1;//距離データが得られたら制御をしても良いフラグを立てる
+      EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
+      Altitude2 = EstimatedAltitude.Altitude;
+      Alt_velocity = EstimatedAltitude.Velocity;
     }
-    EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
-    Altitude2 = EstimatedAltitude.Altitude;
-    Alt_velocity = EstimatedAltitude.Velocity;
+    else dcnt++;
   }
   else dcnt++;
   #endif
