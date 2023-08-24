@@ -58,7 +58,7 @@ const float Pitch_angle_eta = 0.125f;
 
 //Altitude control PID gain
 const float alt_kp = 0.5f;
-const float alt_ti = 1000.0f;
+const float alt_ti = 100.0f;
 const float alt_td = 0.015f;
 const float alt_eta = 0.125f;
 const float alt_period = 0.035;
@@ -111,7 +111,7 @@ volatile float Roll_rate_command=0.0f, Pitch_rate_command=0.0f, Yaw_rate_command
 //Angle comannd
 volatile float Roll_angle_command=0.0f, Pitch_angle_command=0.0f, Yaw_angle_command=0.0f;
 //高度目標
-volatile float Alt_ref = 0.4;
+volatile float Alt_ref = 0.3;
 
 //Offset
 volatile float Roll_angle_offset=0.0f, Pitch_angle_offset=0.0f, Yaw_angle_offset=0.0f;  
@@ -134,6 +134,10 @@ uint8_t BtnA_off_flag =1;
 volatile uint8_t Loop_flag = 0;
 volatile uint8_t Angle_control_flag = 0;
 uint32_t Led_color = 0x000000;
+uint8_t Takeoff_end_flag = 0;
+uint8_t Landing_end_flag = 1;
+uint8_t Takeoff_counter = 0;
+uint8_t Throttle_control_mode = 1;//0:Manual 1:ALtitute control
 
 //flip
 float FliRoll_rate_time = 2.0;
@@ -184,6 +188,9 @@ void make_telemetry_data(uint8_t* senddata);
 void make_telemetry_data2(uint8_t* senddata);
 void make_telemetry_header_data(uint8_t* senddata);
 float altitude_control(uint8_t resetflag);
+void auto_takeoff(void);
+void auto_landing(void);
+
 
 //割り込み関数
 //Intrupt function
@@ -290,7 +297,7 @@ void loop_400Hz(void)
     //Angle Control
     angle_control();
 
-    //Rate Control
+    //Angle Rate Control
     rate_control();
 
   }
@@ -440,6 +447,16 @@ void control_init(void)
 ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////
 
+void auto_takeoff(void)
+{
+
+}
+
+void auto_landing(void)
+{
+
+}
+
 void get_command(void)
 {
   Control_mode = Stick[CONTROLMODE];
@@ -448,29 +465,50 @@ void get_command(void)
   //  Thrust_command = 0.0;
   //}
 
-  //Throttle curve conversion　スロットルカーブ補正
+  //Thrust control
   float throttle_limit = 0.7;
   float thlo = Stick[THROTTLE];
   thlo = thlo/throttle_limit;
 
-  if ( (0.2 > thlo) && (thlo > -0.2) )thlo = 0.0f ;
-  if (thlo>1.0f) thlo = 1.0f;
-  if (thlo<-1.0f) thlo =-1.0f;
-  //Thrust_command = (2.95f*thlo-4.8f*thlo*thlo+2.69f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  //Thrust_command = (2.97f*thlo-4.94f*thlo*thlo+2.86f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  Alt_ref = Alt_ref + (1.0/400.0) * thlo;
-  if(Alt_ref>7.0)Alt_ref=7.0;
-  if(Alt_ref<0.0)Alt_ref=0.0;
-  
-  //Altitude control
-  if(Alt_flag==0)
+  if (Throttle_control_mode == 0)
   {
+    //Manual
+    if ( (0.2 > thlo) && (thlo > -0.2) )thlo = 0.0f ;
+    if (thlo>1.0f) thlo = 1.0f;
+    if (thlo<-1.0f) thlo =0.0f;
+    //Throttle curve conversion　スロットルカーブ補正
+    //Thrust_command = (2.95f*thlo-4.8f*thlo*thlo+2.69f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
+    Thrust_command = (2.97f*thlo-4.94f*thlo*thlo+2.86f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
+  }
+  else if (Throttle_control_mode == 1)
+  {
+    //Altitude Control
+    if ( (0.2 > thlo) && (thlo > -0.2) )thlo = 0.0f ;
+    if (thlo>1.0f) thlo = 1.0f;
+    if (thlo<-1.0f) thlo =-1.0f;
+
+    Alt_ref = Alt_ref + (1.0/400.0) * thlo;
+    if(Alt_ref>0.5)Alt_ref=0.5;
+    if(Alt_ref<0.0)Alt_ref=0.0;
+    
+    //Altitude control
     Thrust0 = Thrust0 + 1.0/(400.0*2);
     if (Thrust0>Thrust0_nominal) Thrust0 = Thrust0_nominal;
-    if (Altitude2<0.15) Thrust_command = Thrust0 * BATTERY_VOLTAGE;
-    else Alt_flag = 1; 
+    Thrust_command = (Thrust0 + altitude_control(0))*BATTERY_VOLTAGE;
+
+    #if 0
+    if(Alt_flag==0)
+    {
+      Thrust0 = Thrust0 + 1.0/(400.0*2);
+      if (Thrust0>Thrust0_nominal) Thrust0 = Thrust0_nominal;
+      
+      if (Altitude2<0.15) Thrust_command = Thrust0 * BATTERY_VOLTAGE;
+      else Alt_flag = 1; 
+    }
+    else Thrust_command = (Thrust0 + altitude_control(0))*BATTERY_VOLTAGE;
+    #endif
   }
-  else Thrust_command = (Thrust0 + altitude_control(0))*BATTERY_VOLTAGE;
+
 
   //Thrust_command = thlo*BATTERY_VOLTAGE;
 
