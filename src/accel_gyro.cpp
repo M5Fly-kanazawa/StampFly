@@ -1,3 +1,7 @@
+
+
+
+#if 0
 /**\
  * Copyright (c) 2023 Bosch Sensortec GmbH. All rights reserved.
  *
@@ -6,10 +10,7 @@
 
 /******************************************************************************/
 /*!                 Header Files                                              */
-#include <stdio.h>
-#include <math.h>
-#include "bmi270_legacy.h"
-#include "common.h"
+#include "accel_gyro.hpp"
 
 /******************************************************************************/
 /*!                Macro definition                                           */
@@ -60,6 +61,7 @@ static float lsb_to_dps(int16_t val, float dps, uint8_t bit_width);
 /******************************************************************************/
 /*!            Functions                                        */
 
+#if 0
 /* This function starts the execution of program. */
 int main(void)
 {
@@ -91,8 +93,8 @@ int main(void)
     rslt = bmi2_interface_init(&bmi, BMI2_SPI_INTF);
     bmi2_error_codes_print_result(rslt);
 
-    /* Initialize bmi270_legacy. */
-    rslt = bmi270_legacy_init(&bmi);
+    /* Initialize bmi270. */
+    rslt = bmi270_init(&bmi);
     bmi2_error_codes_print_result(rslt);
 
     if (rslt == BMI2_OK)
@@ -165,6 +167,7 @@ int main(void)
 
     return rslt;
 }
+#endif
 
 /*!
  * @brief This internal API is used to set configurations for accel and gyro.
@@ -273,4 +276,8 @@ static float lsb_to_dps(int16_t val, float dps, uint8_t bit_width)
     float half_scale = (float)((pow((double)power, (double)bit_width) / 2.0f));
 
     return (dps / (half_scale)) * (val);
+
 }
+
+#endif
+
