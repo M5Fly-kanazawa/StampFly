@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-//#define MINIJOYC
+#define MINIJOYC
 
 #define RUDDER 0
 #define ELEVATOR 1

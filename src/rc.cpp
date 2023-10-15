@@ -49,14 +49,14 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *recv_data, int data_len)
   d_int[3] = recv_data[11];
   Stick[ELEVATOR]  = d_float;
 
-  Stick[BUTTON] = recv_data[12];
-  Stick[BUTTON_A] = recv_data[13];
+  Stick[BUTTON_ARM] = recv_data[12];
+  Stick[BUTTON_FLIP] = recv_data[13];
   Stick[CONTROLMODE] = recv_data[14];
   
   Stick[LOG] = 0.0;
 
   //Normalize
-  Stick[RUDDER] /= -RUDDER_MAX;
+  Stick[RUDDER] /= RUDDER_MAX;
   Stick[THROTTLE] /= THROTTLE_MAX;
   Stick[AILERON] /= (0.5*3.14159);
   Stick[ELEVATOR] /= (0.5*3.14159);
@@ -141,7 +141,7 @@ void rc_init(void)
 
   //ペアリング
   memcpy(peerInfo.peer_addr, addr, 6);
-  peerInfo.channel = 5;
+  peerInfo.channel = 8;
   peerInfo.encrypt = false;
   if (esp_now_add_peer(&peerInfo) != ESP_OK) 
   {
@@ -156,7 +156,7 @@ void rc_init(void)
   USBSerial.println("Wait Contoroller ready....");
   //while(Connect_flag==0);
   USBSerial.println("Contoroller ready !");
-  esp_wifi_set_channel(5, WIFI_SECOND_CHAN_NONE);
+  esp_wifi_set_channel(8, WIFI_SECOND_CHAN_NONE);
 }
 
 uint8_t telemetry_send(uint8_t* data, uint16_t datalen)
