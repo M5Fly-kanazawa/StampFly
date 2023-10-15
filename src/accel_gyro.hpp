@@ -3,7 +3,11 @@
 
 #include <stdio.h>
 #include <math.h>
-//#include "bmi270.h"
-//#include "common/common.h"
+#include <Wire.h>
+#define  BMI270_ADDRESS (0x68)
+
+uint8_t bmi270_byte_read(uint8_t reg_addr);
+void bmi270_byte_write(uint8_t reg_addr, uint8_t data);
+
 
 #endif

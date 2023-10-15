@@ -1,4 +1,5 @@
-#include <Wire.h>
+#include "accel_gyro.hpp"
+
 
 const uint8_t bmi270_config_file[] = {
     0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x3d, 0xb1, 0xc8, 0x2e, 0x00, 0x2e, 0x80, 0x2e, 0x91, 0x03, 0x80, 0x2e, 0xbc,
@@ -435,21 +436,20 @@ const uint8_t bmi270_config_file[] = {
     0x2e, 0x00, 0xc1
 };
 
-
 uint8_t bmi270_byte_read(uint8_t reg_addr)
 {
   uint8_t data;
-  Wire1.beginTransmission (MPU6886_ADDRESS);
+  Wire1.beginTransmission (BMI270_ADDRESS);
   Wire1.write(reg_addr);
   Wire1.endTransmission();
-  Wire1.requestFrom(MPU6886_ADDRESS, 1);
+  Wire1.requestFrom(BMI270_ADDRESS, 1);
   data = Wire1.read();
   return data;
 }
 
 void bmi270_byte_write(uint8_t reg_addr, uint8_t data)
 {
-  Wire1.beginTransmission (MPU6886_ADDRESS);
+  Wire1.beginTransmission (BMI270_ADDRESS);
   Wire1.write(reg_addr);
   Wire1.write(data);
   Wire1.endTransmission();
