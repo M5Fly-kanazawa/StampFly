@@ -1,14 +1,12 @@
 #include "sensor.hpp"
 
-MPU6886 IMU;
 Madgwick Drone_ahrs;
 Alt_kalman EstimatedAltitude;
 
-// Set I2C address to 0x40 (A0 pin -> GND)
-INA3221 ina3221(INA3221_ADDR40_GND);
+INA3221 ina3221(INA3221_ADDR40_GND);// Set I2C address to 0x40 (A0 pin -> GND)
 Filter acc_filter;
 Filter voltage_filter;
-Adafruit_VL53L0X tof = Adafruit_VL53L0X();
+VL53L3C tof;
 
 //Sensor data
 volatile float Roll_angle=0.0f, Pitch_angle=0.0f, Yaw_angle=0.0f;
@@ -44,7 +42,7 @@ uint8_t init_i2c()
       USBSerial.print ("Found address: ");
       USBSerial.print (i, DEC);
       USBSerial.print (" (0x");
-      USBSerial.print (i, HEX);     // PCF8574 7 bit address
+      USBSerial.print (i, HEX); 
       USBSerial.println (")");
       count++;
     }
@@ -55,27 +53,10 @@ uint8_t init_i2c()
   return count;
 }
 
-uint8_t mpu6886_byte_read(uint8_t reg_addr)
-{
-  uint8_t data;
-  Wire1.beginTransmission (MPU6886_ADDRESS);
-  Wire1.write(reg_addr);
-  Wire1.endTransmission();
-  Wire1.requestFrom(MPU6886_ADDRESS, 1);
-  data = Wire1.read();
-  return data;
-}
-
-void mpu6886_byte_write(uint8_t reg_addr, uint8_t data)
-{
-  Wire1.beginTransmission (MPU6886_ADDRESS);
-  Wire1.write(reg_addr);
-  Wire1.write(data);
-  Wire1.endTransmission();
-}
-
 void imu_init(void)
 {
+  IMU.begin();
+ #if 0
   //Cutoff frequency
   //filter_config Gyro Accel
   //0 250    218.1 log140　Bad
@@ -94,10 +75,11 @@ void imu_init(void)
   //beta =0 次第に角度増大（角速度の積分のみに相当する）
   //beta=0.5
 
-  IMU.Init();
+  
+  
   //IMUのデフォルトI2C周波数が100kHzなので400kHzに上書き
 
-  MPU6886 imu;
+  //MPU6886 imu;
 
   //Wire1.begin(SDA_PIN, SCL_PIN, 400000UL);
 
@@ -123,6 +105,7 @@ void imu_init(void)
   mpu6886_byte_write(MPU6886_ACCEL_CONFIG2, (data & 0b11110111) | filter_config);
   data = mpu6886_byte_read(MPU6886_ACCEL_CONFIG2);
   USBSerial.printf("Update ACCEL_CONFIG2 %d\r\n", data);
+#endif
 
 }
 
@@ -157,7 +140,7 @@ void sensor_init()
   imu_init();
   tof_init();
   //test_rangefinder();
-  Drone_ahrs.begin(400.0);
+  //Drone_ahrs.begin(400.0);
   ina3221.begin(&Wire1);
   ina3221.reset();  
   //voltage_filter.set_parameter(0.005, 0.0025);
@@ -168,48 +151,67 @@ void sensor_init()
 
 void tof_init(void)
 {
-    tof.begin(0x29, false, &Wire1);
-    tof.configSensor(tof.VL53L0X_SENSE_LONG_RANGE);
-    tof.setDeviceMode(VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
-    tof.setMeasurementTimingBudgetMicroSeconds(33000);
-    tof.startRangeContinuous(33);
-    while(tof.isRangeComplete()==0);    
-    USBSerial.printf("ToF OK Distance=%d\n", tof.readRangeResult());
-    //tof.clearInterruptMask();
-    for(uint8_t i=0; i<10; i++)
-    {
-      uint64_t st,et;
-      uint8_t answer=tof.isRangeComplete();
-      while(answer==0){
-        answer=tof.isRangeComplete();
-      }
-      
-      st=micros();
-      uint16_t range = tof.readRangeResult();
-      et=micros();
+  MeasurmentResult measResult;
 
-      USBSerial.printf("%f %d\n\r",(et-st)*1.0e-6, range);
-    }
-    //USBSerial.printf("\n\r");
+  pinMode(7, OUTPUT);
+  digitalWrite(7,0);
+  pinMode(9, OUTPUT);
+  digitalWrite(9,0);
+
+  pinMode(6, OUTPUT);
+  digitalWrite(6,1);
+  pinMode(8, OUTPUT);
+  digitalWrite(8,1);
+
+
+
+  tof.begin(Wire1); 
+  tof.setDistanceMode(DIST_LONG);
+  tof.setTimingBudget(33000);
+  
+  u_long st=micros();
+
+  tof.startMeasurement();
+  delay(40);
+
+  digitalWrite(6,0);
+  digitalWrite(8,0);
+
+  while(tof.dataIsReady()==false);
+  
+  tof.getMeasurmentData(&measResult);
+  tof.startNextMeasurement();
+  digitalWrite(6,1);
+  digitalWrite(8,1);
+
+
+  u_long et=micros();
+
+  USBSerial.printf("Obj Number:%d\r\n", measResult.numObjs);
+  for (int i=0; i<measResult.numObjs; i++)
+  {
+    USBSerial.printf("[%d] %d mm\n\r", i+1, measResult.rangeData[i].Range);
+  }
+  
+  USBSerial.printf("Distance mesuring time %f \n\r", (et-st)*1.0e-6);
 
 }
 
 void start_mesure_distance(void)
 {
-  tof.startMeasurement();
+  //tof.startMeasurement();
 }
 
 uint8_t is_finish_ranging(void)
 {
-  return tof.isRangeComplete();
+  //return tof.isRangeComplete();
 }
 
 uint16_t get_distance(void)
 {
-  uint16_t range;
-  range = tof.readRangeResult();
-  //tof.clearInterruptMask();
-  return  range;
+  MeasurmentResult measResult;
+  tof.getMeasurmentData(&measResult);
+  return measResult.rangeData[measResult.numObjs-1].Range;
 }
 
 void ahrs_reset(void)
@@ -237,8 +239,8 @@ float sensor_read(void)
   //Y軸：前後（前が正）左肩上がりが回転の正
   //Z軸：上下（上が正）左回りが回転の正
 
-  IMU.getAccelData(&ax, &ay, &az);
-  IMU.getGyroData(&gx, &gy, &gz);
+  //IMU.getAccelData(&ax, &ay, &az);
+  //IMU.getGyroData(&gx, &gy, &gz);
 
   Accel_x_raw = ay;
   Accel_y_raw = ax;
@@ -286,9 +288,9 @@ float sensor_read(void)
   //Get Altitude (30Hz)
   if (dcnt>interval)
   {
-    if(is_finish_ranging())
+    if(tof.dataIsReady())
     {
-      dist = tof.readRangeResult();
+      dist = get_distance();
       Altitude = (float)dist;
       dcnt=0u;
     }

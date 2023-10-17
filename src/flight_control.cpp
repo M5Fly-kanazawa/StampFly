@@ -197,6 +197,10 @@ void init_copter(void)
   //Initilize Radio control
   rc_init();
   sensor_init();
+
+  USBSerial.printf("Finish sensor init!\r\n");
+  while(1);
+
   control_init();
 
   //割り込み設定

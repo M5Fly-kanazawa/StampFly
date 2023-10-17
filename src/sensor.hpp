@@ -5,13 +5,15 @@
 #include "pid.hpp"
 #include <INA3221.h>
 #include <MadgwickAHRS.h>
-#include <Adafruit_VL53L0X.h>
-#include <MPU6886.h>
+#include <Arduino_BMI270_BMM150.h>
+#include <PWFusion_VL53L3C.h>
 #include <stdint.h>
 #include "alt_kalman.hpp"
 
-#define SDA_PIN (46)
-#define SCL_PIN (41)
+//#define SDA_PIN (46)
+//#define SCL_PIN (41)
+#define SDA_PIN (3)
+#define SCL_PIN (4)
 
 typedef struct
 {
