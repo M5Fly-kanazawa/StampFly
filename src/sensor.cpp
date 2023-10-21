@@ -6,7 +6,7 @@ Alt_kalman EstimatedAltitude;
 INA3221 ina3221(INA3221_ADDR40_GND);// Set I2C address to 0x40 (A0 pin -> GND)
 Filter acc_filter;
 Filter voltage_filter;
-VL53L3C tof;
+//VL53L3C tof;
 
 //Sensor data
 volatile float Roll_angle=0.0f, Pitch_angle=0.0f, Yaw_angle=0.0f;
@@ -151,68 +151,13 @@ void sensor_init()
 
 void tof_init(void)
 {
-  MeasurmentResult measResult;
-
-  pinMode(7, OUTPUT);
-  digitalWrite(7,0);
-  pinMode(9, OUTPUT);
-  digitalWrite(9,0);
-
-  pinMode(6, OUTPUT);
-  digitalWrite(6,1);
-  pinMode(8, OUTPUT);
-  digitalWrite(8,1);
-
-
-
-  tof.begin(Wire1); 
-  tof.setDistanceMode(DIST_LONG);
-  tof.setTimingBudget(33000);
-  
   u_long st=micros();
 
-  tof.startMeasurement();
-  delay(40);
-
-  digitalWrite(6,0);
-  digitalWrite(8,0);
-
-  while(tof.dataIsReady()==false);
-  
-  tof.getMeasurmentData(&measResult);
-  tof.startNextMeasurement();
-  digitalWrite(6,1);
-  digitalWrite(8,1);
 
 
-  u_long et=micros();
-
-  USBSerial.printf("Obj Number:%d\r\n", measResult.numObjs);
-  for (int i=0; i<measResult.numObjs; i++)
-  {
-    USBSerial.printf("[%d] %d mm\n\r", i+1, measResult.rangeData[i].Range);
-  }
-  
-  USBSerial.printf("Distance mesuring time %f \n\r", (et-st)*1.0e-6);
 
 }
 
-void start_mesure_distance(void)
-{
-  //tof.startMeasurement();
-}
-
-uint8_t is_finish_ranging(void)
-{
-  //return tof.isRangeComplete();
-}
-
-uint16_t get_distance(void)
-{
-  MeasurmentResult measResult;
-  tof.getMeasurmentData(&measResult);
-  return measResult.rangeData[measResult.numObjs-1].Range;
-}
 
 void ahrs_reset(void)
 {
@@ -284,7 +229,7 @@ float sensor_read(void)
   uint32_t mt=micros();
   //Altitude
   
-  #if 1
+  #if 0
   //Get Altitude (30Hz)
   if (dcnt>interval)
   {

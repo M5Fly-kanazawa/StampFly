@@ -6,7 +6,8 @@
 #include <INA3221.h>
 #include <MadgwickAHRS.h>
 #include <Arduino_BMI270_BMM150.h>
-#include <PWFusion_VL53L3C.h>
+#include <vl53lx_api.h>
+#include <vl53lx_platform.h>
 #include <stdint.h>
 #include "alt_kalman.hpp"
 
