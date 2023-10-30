@@ -128,8 +128,20 @@ void sensor_calc_offset_avarage(void)
   Offset_counter++;
 }
 
+#define XSHUT_BOTOM 7
+#define XSHUT_FRONT 9
+
+
+
 void sensor_init()
 {
+  pinMode(XSHUT_BOTOM, OUTPUT);
+  digitalWrite(XSHUT_BOTOM, HIGH);
+  pinMode(XSHUT_FRONT, OUTPUT);
+  digitalWrite(XSHUT_FRONT, HIGH);
+
+  delay(5);
+
   if(init_i2c()==0)
   {
     USBSerial.printf("No I2C device!\r\n");
@@ -137,27 +149,72 @@ void sensor_init()
     while(1);
   }
 
-  imu_init();
+  //imu_init();
   tof_init();
   //test_rangefinder();
   //Drone_ahrs.begin(400.0);
-  ina3221.begin(&Wire1);
-  ina3221.reset();  
+  //ina3221.begin(&Wire1);
+  //ina3221.reset();  
   //voltage_filter.set_parameter(0.005, 0.0025);
   //Acceleration filter
-  acc_filter.set_parameter(0.005, 0.0025);
+  //acc_filter.set_parameter(0.005, 0.0025);
+  while(1);
 
 }
+
+VL53LX_Dev_t                   dev;
+VL53LX_DEV VL53L3C=&dev;
+//I2C_HandleTypeDef hi2c1;
+
+static void I2C1_Init(void)
+{  
+  
+}
+
 
 void tof_init(void)
 {
+  uint8_t byteData;
+  uint16_t wordData;
+
   u_long st=micros();
+  USBSerial.printf("i2c_init_status:%d\r\n",i2c_init());
+  VL53L3C->comms_speed_khz = 400;
+  VL53L3C->i2c_slave_address = 0x52;
+  //VL53L3C->I2cHandle = &hi2c1;
+  //VL53L3C->I2cDevAddr = 0x52;
 
+  VL53LX_WaitDeviceBooted(VL53L3C);
+  VL53LX_DataInit(VL53L3C);
 
-
+  VL53LX_RdByte(VL53L3C, 0x010F, &byteData);
+  USBSerial.printf("VL53LX Model_ID: %02X\n\r", byteData);
+  VL53LX_RdByte(VL53L3C, 0x0110, &byteData);
+  USBSerial.printf("VL53LX Module_Type: %02X\n\r", byteData);
+  VL53LX_RdWord(VL53L3C, 0x010F, &wordData);
+  USBSerial.printf("VL53LX: %02X\n\r", wordData);
 
 }
-
+#if 0
+typedef struct {
+	VL53LX_DevData_t   Data;
+	/*!< Low Level Driver data structure */
+    uint8_t   i2c_slave_address;
+	uint8_t   comms_type;
+	uint16_t  comms_speed_khz;
+	I2C_HandleTypeDef *I2cHandle;
+	uint8_t   I2cDevAddr;
+	int     Present;
+	int 	Enabled;
+	int LoopState;
+	int FirstStreamCountZero;
+	int 	Idle;
+	int		Ready;
+	uint8_t RangeStatus;
+	FixPoint1616_t SignalRateRtnMegaCps;
+	VL53LX_DeviceState   device_state;  /*!< Device State */
+} VL53LX_Dev_t;
+#endif
 
 void ahrs_reset(void)
 {

@@ -7,6 +7,7 @@
 #include "pid.hpp"
 #include "sensor.hpp"
 #include <FastLED.h>
+#include <vl53lx_platform.h>
 
 #define BATTERY_VOLTAGE (3.7)
 #define WHITE 0xffffff
