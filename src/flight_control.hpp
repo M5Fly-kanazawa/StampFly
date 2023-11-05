@@ -18,7 +18,7 @@
 #define POWEROFFCOLOR 0x18EBF9
 
 #define PIN_BUTTON 0
-#define PIN_LED_ONBORD 14
+#define PIN_LED_ONBORD 39
 #define PIN_LED_ESP    21
 #define NUM_LEDS   1
 

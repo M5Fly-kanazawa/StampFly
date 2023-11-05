@@ -48,7 +48,7 @@ extern "C"
  * @brief  All end user OS/platform/application porting
  */
 
-int i2c_init(void);
+int vl53lx_i2c_init(void);
 
 /**
  * @brief  Initialise platform comms.

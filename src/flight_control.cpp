@@ -4,10 +4,10 @@
 
 //モータPWM出力Pinのアサイン
 //Motor PWM Pin
-const int pwmFrontLeft  = 7;
-const int pwmFrontRight = 1;
-const int pwmRearLeft   = 12;
-const int pwmRearRight  = 42;
+const int pwmFrontLeft  = 5;
+const int pwmFrontRight = 42;
+const int pwmRearLeft   = 10;
+const int pwmRearRight  = 41;
 
 //モータPWM周波数 
 //Motor PWM Frequency
@@ -133,7 +133,7 @@ PID theta_pid;
 PID psi_pid;
 PID alt;
 CRGB led_esp[NUM_LEDS];
-CRGB led_onboard[NUM_LEDS];
+CRGB led_onboard[2];
 
 //Function declaration
 void init_pwm();
@@ -178,11 +178,12 @@ void init_copter(void)
   Mode = INIT_MODE;
 
   //Initialaze LED function
-  FastLED.addLeds<WS2812, PIN_LED_ONBORD, GRB>(led_onboard, NUM_LEDS);
-  FastLED.addLeds<WS2812, PIN_LED_ESP, GRB>(led_esp, NUM_LEDS);
+  FastLED.addLeds<WS2812, PIN_LED_ONBORD, GRB>(led_onboard, 2);
+  FastLED.addLeds<WS2812, PIN_LED_ESP, GRB>(led_esp, 1);
 
   led_esp[0]=RED;
   led_onboard[0]=WHITE;
+  led_onboard[1]=WHITE;
 
   FastLED.show();
 
@@ -199,7 +200,7 @@ void init_copter(void)
   sensor_init();
 
   USBSerial.printf("Finish sensor init!\r\n");
-  while(1);
+  //while(1);
 
   control_init();
 
@@ -705,8 +706,15 @@ void set_duty_rl(float duty){ledcWrite(RearLeft_motor, (uint32_t)(255*duty));}
 
 void onboard_led(CRGB p, uint8_t state)
 {
-  if (state ==1) led_onboard[0]=p;
-  else led_onboard[0]=0;
+  if (state ==1)
+  {
+    led_onboard[0]=p;
+    led_onboard[1]=p;
+  } 
+  else {
+    led_onboard[0]=0;
+    led_onboard[1]=0;
+  }
    //Update LED
   //FastLED.show();
   return;

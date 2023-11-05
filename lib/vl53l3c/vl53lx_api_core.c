@@ -2634,9 +2634,6 @@ VL53LX_Error VL53LX_get_histogram_bin_data(
 		pbuffer += 3;
 	}
 
-
-
-
 	VL53LX_get_tuning_parm(Dev, VL53LX_TUNINGPARM_HIST_MERGE, &hist_merge);
 
 	if (pdata->result__stream_count == 0) {

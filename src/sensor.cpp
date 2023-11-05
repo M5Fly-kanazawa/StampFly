@@ -1,4 +1,24 @@
 #include "sensor.hpp"
+#include "common.h"
+#include "bmi2.h"
+
+/************ BEEP ************/
+#define BEEP 40
+//モータPWM出力Pinのアサイン
+
+//モータPWM周波数 
+//Beep PWM Frequency [Hz]
+int32_t beep_freq = 330;
+
+//PWM分解能
+//PWM Resolution
+const int beep_resolution = 12;
+
+//モータチャンネルのアサイン
+//BEEP Channel
+const int beep_channel  = 5;
+/************ BEEP ************/
+
 
 Madgwick Drone_ahrs;
 Alt_kalman EstimatedAltitude;
@@ -6,7 +26,6 @@ Alt_kalman EstimatedAltitude;
 INA3221 ina3221(INA3221_ADDR40_GND);// Set I2C address to 0x40 (A0 pin -> GND)
 Filter acc_filter;
 Filter voltage_filter;
-//VL53L3C tof;
 
 //Sensor data
 volatile float Roll_angle=0.0f, Pitch_angle=0.0f, Yaw_angle=0.0f;
@@ -21,6 +40,9 @@ volatile float Altitude = 0.0f;
 volatile float Altitude2 = 0.0f;
 volatile float Alt_velocity = 0.0f;
 volatile uint16_t Offset_counter = 0;
+volatile uint8_t ToF_bottom_data_ready_flag = 0;
+volatile uint8_t ToF_front_data_ready_flag = 0;
+
 
 volatile float Voltage;
 float Acc_norm=0.0f;
@@ -29,12 +51,26 @@ float Over_g=0.0f, Over_rate=0.0f;
 uint8_t OverG_flag = 0;
 volatile uint8_t Under_voltage_flag = 0; 
 
-uint8_t init_i2c()
+volatile uint16_t Range=1000;
+
+void beep_init(void);
+
+void beep_init(void)
 {
-  Wire1.begin(SDA_PIN, SCL_PIN,400000UL);
+  ledcSetup(beep_channel, (uint32_t)beep_freq, beep_resolution);
+  ledcAttachPin(BEEP, beep_channel);
+  ledcWrite(beep_channel, (uint32_t)(0));
+}
+
+
+
+
+uint8_t scan_i2c()
+{
   USBSerial.println ("I2C scanner. Scanning ...");
+  delay(50);
   byte count = 0;
-  for (short i = 0; i < 256; i++)
+  for (uint8_t i = 1; i < 127; i++)
   {
     Wire1.beginTransmission (i);          // Begin I2C transmission Address (i)
     if (Wire1.endTransmission () == 0)  // Receive 0 = success (ACK response) 
@@ -53,61 +89,6 @@ uint8_t init_i2c()
   return count;
 }
 
-void imu_init(void)
-{
-  IMU.begin();
- #if 0
-  //Cutoff frequency
-  //filter_config Gyro Accel
-  //0 250    218.1 log140　Bad
-  //1 176    218.1 log141　Bad
-  //2 92     99.0  log142 Bad これはヨーガカクカクする log256
-  //3 41     44.8  log143 log188　Good! log257
-  //4 20     21.2
-  //5 10     10.2
-  //6 5      5.1
-  //7 3281   420.0
-  uint8_t data;
-  const uint8_t filter_config = 2;//(今の所2はノイズが多くてダメ、log188は3)
-
-  //Mdgwick filter 実験
-  // filter_config=0において実施
-  //beta =0 次第に角度増大（角速度の積分のみに相当する）
-  //beta=0.5
-
-  
-  
-  //IMUのデフォルトI2C周波数が100kHzなので400kHzに上書き
-
-  //MPU6886 imu;
-
-  //Wire1.begin(SDA_PIN, SCL_PIN, 400000UL);
-
- //F_CHOICE_B
-  data = mpu6886_byte_read(MPU6886_GYRO_CONFIG);
-  USBSerial.printf("GYRO_CONFIG %d\r\n", data);
-  mpu6886_byte_write(MPU6886_GYRO_CONFIG, data & 0b11111100);
-  data = mpu6886_byte_read(MPU6886_GYRO_CONFIG);
-  USBSerial.printf("Update GYRO_CONFIG %d\r\n", data);
-
-  //Gyro
-  //DLPG_CFG
-  data = mpu6886_byte_read(MPU6886_CONFIG);
-  USBSerial.printf("CONFIG %d\r\n", data);
-  mpu6886_byte_write(MPU6886_CONFIG, (data&0b11111100)|filter_config);
-  data = mpu6886_byte_read(MPU6886_CONFIG);
-  USBSerial.printf("Update CONFIG %d\r\n", data);
-
-  //Accel
-  //ACCEL_FCHOCE_B & A_DLPF_CFG
-  data = mpu6886_byte_read(MPU6886_ACCEL_CONFIG2);
-  USBSerial.printf("ACCEL_CONFIG2 %d\r\n", data);
-  mpu6886_byte_write(MPU6886_ACCEL_CONFIG2, (data & 0b11110111) | filter_config);
-  data = mpu6886_byte_read(MPU6886_ACCEL_CONFIG2);
-  USBSerial.printf("Update ACCEL_CONFIG2 %d\r\n", data);
-#endif
-
-}
 
 void sensor_reset_offset(void)
 {
@@ -127,48 +108,139 @@ void sensor_calc_offset_avarage(void)
 
   Offset_counter++;
 }
-
-#define XSHUT_BOTOM 7
+#define INT_BOTTOM 6
+#define XSHUT_BOTTOM 7
+#define INT_FRONT 8
 #define XSHUT_FRONT 9
+#define USER_A 0
+
+VL53LX_Dev_t tof_front;
+VL53LX_Dev_t tof_bottom;
+
+VL53LX_DEV ToF_front=&tof_front;
+VL53LX_DEV ToF_bottom=&tof_bottom;
 
 
-
-void sensor_init()
-{
-  pinMode(XSHUT_BOTOM, OUTPUT);
-  digitalWrite(XSHUT_BOTOM, HIGH);
-  pinMode(XSHUT_FRONT, OUTPUT);
-  digitalWrite(XSHUT_FRONT, HIGH);
-
-  delay(5);
-
-  if(init_i2c()==0)
-  {
-    USBSerial.printf("No I2C device!\r\n");
-    USBSerial.printf("Can not boot AtomFly2.\r\n");
-    while(1);
-  }
-
-  //imu_init();
-  tof_init();
-  //test_rangefinder();
-  //Drone_ahrs.begin(400.0);
-  //ina3221.begin(&Wire1);
-  //ina3221.reset();  
-  //voltage_filter.set_parameter(0.005, 0.0025);
-  //Acceleration filter
-  //acc_filter.set_parameter(0.005, 0.0025);
-  while(1);
-
+void pipo(void)
+{  
+  ledcChangeFrequency(beep_channel, 2000, beep_resolution);
+  ledcWrite(beep_channel, 127);
+  ets_delay_us(200000);
+  ledcWrite(beep_channel, 0);
+  ets_delay_us(5000);
+  ledcChangeFrequency(beep_channel, 1000, beep_resolution);
+  ledcWrite(beep_channel, 127);
+  ets_delay_us(200000);
+  ledcWrite(beep_channel, 0);
 }
 
-VL53LX_Dev_t                   dev;
-VL53LX_DEV VL53L3C=&dev;
-//I2C_HandleTypeDef hi2c1;
+void IRAM_ATTR tof_int()
+{
+  ToF_bottom_data_ready_flag = 1;
+}
 
-static void I2C1_Init(void)
-{  
-  
+void tof_range_get(VL53LX_DEV dev)
+{
+  VL53LX_MultiRangingData_t MultiRangingData;
+  VL53LX_MultiRangingData_t *pMultiRangingData=&MultiRangingData;
+
+  VL53LX_GetMultiRangingData(dev, pMultiRangingData);
+  uint8_t no_of_object_found=pMultiRangingData->NumberOfObjectsFound;
+  if(no_of_object_found!=0)
+  {
+    Range = MultiRangingData.RangeData[0].RangeMilliMeter;
+    #if 0
+    for(uint8_t j=0;j<no_of_object_found;j++){
+          if(j!=0)USBSerial.printf("\n\r                     ");
+          USBSerial.printf("%d %5d %2.2f %2.2f ",
+                  MultiRangingData.RangeData[j].RangeStatus,
+                  MultiRangingData.RangeData[j].RangeMilliMeter,
+                  MultiRangingData.RangeData[j].SignalRateRtnMegaCps/65536.0,
+                  MultiRangingData.RangeData[j].AmbientRateRtnMegaCps/65536.0);
+    }
+    #endif
+        
+  }
+  VL53LX_ClearInterruptAndStartMeasurement(dev);
+}
+
+float acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z;
+
+void imu_init(void)
+{
+  bmi270_dev_init();
+  uint8_t data;
+  bmi2_get_regs(0x00, &data, 1, pBmi270);
+  USBSerial.printf("BMI270 CHIP ID:%02X\n\r", data);
+  USBSerial.printf("INIT Status:%02X\n\r", bmi270_init(pBmi270));
+  USBSerial.printf("Config Status:%02X\n\r", set_accel_gyro_config(pBmi270));
+  uint8_t sensor_list[2] = { BMI2_ACCEL, BMI2_GYRO };
+  USBSerial.printf("Sensor enable Status:%02X\n\r", bmi2_sensor_enable(sensor_list, 2, pBmi270));
+}
+
+#define DPS20002RAD 34.90658504
+
+void test_imu(void)
+{
+  u_long st, now, old, end;
+  uint16_t count;
+  st=micros();
+  now = st;
+  old = st;
+
+  struct bmi2_sens_data imu_data;
+  while(1)
+  {
+    old = now;
+    now = micros();
+    bmi2_get_sensor_data(&imu_data, pBmi270);
+    acc_x = lsb_to_mps2(imu_data.acc.x, 2.0, 16);
+    acc_y = lsb_to_mps2(imu_data.acc.y, 2.0, 16);
+    acc_z = lsb_to_mps2(imu_data.acc.z, 2.0, 16);
+    gyro_x = lsb_to_rps(imu_data.gyr.x, DPS20002RAD, 16);
+    gyro_y = lsb_to_rps(imu_data.gyr.y, DPS20002RAD, 16);
+    gyro_z = lsb_to_rps(imu_data.gyr.z, DPS20002RAD, 16);
+    USBSerial.printf("%8.4f %7.5f %8.4f %8.4f %8.4f %8.4f %8.4f %8.4f \n\r", 
+      (float)(now-st)*1.0e-6,
+      (float)(now - old)*1.0e-6,
+      acc_x,
+      acc_y,
+      acc_z,
+      gyro_x,
+      gyro_y,
+      gyro_z);
+  }
+}
+
+void termin(void)
+{
+  while(1)
+  {
+    if(ToF_bottom_data_ready_flag)
+    {
+      ToF_bottom_data_ready_flag = 0;
+      tof_range_get(ToF_bottom);
+
+      //Change Beep freqency
+      beep_freq = ((int32_t)Range - 23)*5 + 100;
+      beep_freq = beep_freq>>2;
+      beep_freq = beep_freq<<2;
+      if(beep_freq>8000)beep_freq = 8000;
+
+      if(beep_freq<0)
+      {
+        ledcWrite(beep_channel, 0);
+      }
+      else if(beep_freq>50)
+      {
+        ledcChangeFrequency(beep_channel, (uint32_t)beep_freq, beep_resolution);
+        ledcWrite(beep_channel, 127);
+      }
+      //else ledcWrite(beep_channel, 127);
+
+      USBSerial.printf("%d %d\r\n", Range, beep_freq);
+    }
+  }
 }
 
 
@@ -177,52 +249,177 @@ void tof_init(void)
   uint8_t byteData;
   uint16_t wordData;
 
-  u_long st=micros();
-  USBSerial.printf("i2c_init_status:%d\r\n",i2c_init());
-  VL53L3C->comms_speed_khz = 400;
-  VL53L3C->i2c_slave_address = 0x52;
-  //VL53L3C->I2cHandle = &hi2c1;
-  //VL53L3C->I2cDevAddr = 0x52;
+  ToF_bottom->comms_speed_khz = 400;
+  ToF_bottom->i2c_slave_address = 0x29;
 
-  VL53LX_WaitDeviceBooted(VL53L3C);
-  VL53LX_DataInit(VL53L3C);
+  ToF_front->comms_speed_khz = 400;
+  ToF_front->i2c_slave_address = 0x29;
 
-  VL53LX_RdByte(VL53L3C, 0x010F, &byteData);
-  USBSerial.printf("VL53LX Model_ID: %02X\n\r", byteData);
-  VL53LX_RdByte(VL53L3C, 0x0110, &byteData);
-  USBSerial.printf("VL53LX Module_Type: %02X\n\r", byteData);
-  VL53LX_RdWord(VL53L3C, 0x010F, &wordData);
-  USBSerial.printf("VL53LX: %02X\n\r", wordData);
+
+  //USBSerial.printf("#tof_i2c_init_status:%d\r\n",vl53lx_i2c_init());  
+
+  //ToF Pin Initialize
+  pinMode(XSHUT_BOTTOM, OUTPUT);
+  pinMode(XSHUT_FRONT, OUTPUT);
+  pinMode(INT_BOTTOM, INPUT);
+  pinMode(INT_FRONT, INPUT);
+  pinMode(USER_A, INPUT_PULLUP);
+  
+  //ToF Disable
+  digitalWrite(XSHUT_BOTTOM, LOW);
+  digitalWrite(XSHUT_FRONT, LOW);
+
+  //Front ToF I2C address to 0x54  
+  digitalWrite(XSHUT_FRONT, HIGH);
+  delay(100);
+  VL53LX_SetDeviceAddress(ToF_front, 0x54);
+  ToF_front->i2c_slave_address = 0x2A;
+
+  delay(100);
+  digitalWrite(XSHUT_BOTTOM, HIGH);
+
+  //Bttom ToF setting
+  USBSerial.printf("#1 WaitDeviceBooted Status:%d\n\r",VL53LX_WaitDeviceBooted(ToF_bottom));
+  USBSerial.printf("#1 DataInit Status:%d\n\r",VL53LX_DataInit(ToF_bottom));
+  USBSerial.printf("#1 Range setting  Status:%d\n\r", VL53LX_SetDistanceMode(ToF_bottom, VL53LX_DISTANCEMODE_LONG));
+  USBSerial.printf("#1 SetMeasurementTimingBuget Status:%d\n\r",VL53LX_SetMeasurementTimingBudgetMicroSeconds(ToF_bottom, 20000));
+  USBSerial.printf("#1 RdByte Status:%d\n\r", VL53LX_RdByte(ToF_bottom, 0x010F, &byteData));
+  USBSerial.printf("#1 VL53LX Model_ID: %02X\n\r", byteData);  
+  USBSerial.printf("#1 RdByte Status:%d\n\r", VL53LX_RdByte(ToF_bottom, 0x0110, &byteData));
+  USBSerial.printf("#1 VL53LX Module_Type: %02X\n\r", byteData);
+  USBSerial.printf("#1 RdWord Status:%d\n\r", VL53LX_RdWord(ToF_bottom, 0x010F, &wordData));
+  USBSerial.printf("#1 VL53LX: %04X\n\r", wordData);
+  
+  //Front ToF Setting
+  USBSerial.printf("#2 WaitDeviceBooted Status:%d\n\r",VL53LX_WaitDeviceBooted(ToF_front));
+  USBSerial.printf("#2 DataInit Status:%d\n\r",VL53LX_DataInit(ToF_front));
+  USBSerial.printf("#1 Range setting  Status:%d\n\r", VL53LX_SetDistanceMode(ToF_front, VL53LX_DISTANCEMODE_LONG));
+  USBSerial.printf("#2 SetMeasurementTimingBuget Status:%d\n\r",VL53LX_SetMeasurementTimingBudgetMicroSeconds(ToF_front, 20000));
+  USBSerial.printf("#2 RdByte Status:%d\n\r", VL53LX_RdByte(ToF_front, 0x010F, &byteData));
+  USBSerial.printf("#2 VL53LX Model_ID: %02X\n\r", byteData);  
+  USBSerial.printf("#2 RdByte Status:%d\n\r", VL53LX_RdByte(ToF_front, 0x0110, &byteData));
+  USBSerial.printf("#2 VL53LX Module_Type: %02X\n\r", byteData);
+  USBSerial.printf("#2 RdWord Status:%d\n\r", VL53LX_RdWord(ToF_front, 0x010F, &wordData));
+  USBSerial.printf("#2 VL53LX: %04X\n\r", wordData);
+
+  attachInterrupt(INT_BOTTOM, &tof_int, FALLING);
+
+  VL53LX_ClearInterruptAndStartMeasurement(ToF_bottom);
+  delay(100);
+  USBSerial.printf("#Start Measurement Status:%d\n\r", VL53LX_StartMeasurement(ToF_bottom));
 
 }
-#if 0
-typedef struct {
-	VL53LX_DevData_t   Data;
-	/*!< Low Level Driver data structure */
-    uint8_t   i2c_slave_address;
-	uint8_t   comms_type;
-	uint16_t  comms_speed_khz;
-	I2C_HandleTypeDef *I2cHandle;
-	uint8_t   I2cDevAddr;
-	int     Present;
-	int 	Enabled;
-	int LoopState;
-	int FirstStreamCountZero;
-	int 	Idle;
-	int		Ready;
-	uint8_t RangeStatus;
-	FixPoint1616_t SignalRateRtnMegaCps;
-	VL53LX_DeviceState   device_state;  /*!< Device State */
-} VL53LX_Dev_t;
-#endif
+
+void test_ranging(VL53LX_DEV dev)
+{
+  uint8_t status=0;
+  uint8_t data_ready=0;
+  int16_t range;
+  VL53LX_MultiRangingData_t MultiRangingData;
+  VL53LX_MultiRangingData_t *pMultiRangingData=&MultiRangingData;
+
+  if (status==0){
+    status = VL53LX_ClearInterruptAndStartMeasurement(dev);
+  }
+  delay(100);
+  USBSerial.printf("#Start Measurement Status:%d\n\r", VL53LX_StartMeasurement(dev));
+
+  USBSerial.printf("#Count ObjNo Status Range Signal(Mcps) Ambient(Mcps)\n\r");
+
+  u_long st, now, old, end;
+  uint16_t count;
+  st=micros();
+  now = st;
+  old = st;
+
+  count = 0;
+  USBSerial.printf("Start!\n\r");
+  while(count<500)
+  {
+    //VL53LX_WaitMeasurementDataReady(dev);
+    //if(digitalRead(INT_BOTTOM)==0)
+
+    VL53LX_GetMeasurementDataReady(dev, &data_ready);
+    if( data_ready==1 )
+    {
+      data_ready = 0;
+      count++;      
+      VL53LX_GetMultiRangingData(dev, pMultiRangingData);
+      old = now;
+      now=micros();
+      uint8_t no_of_object_found=pMultiRangingData->NumberOfObjectsFound;
+      USBSerial.printf("%7.4f %7.4f ", (float)(now-st)*1e-6, (float)(now - old)*1e-6);
+      USBSerial.printf("%5d ", pMultiRangingData->StreamCount);
+      USBSerial.printf("%1d ", no_of_object_found);
+      for(uint8_t j=0;j<no_of_object_found;j++){
+        if(j!=0)USBSerial.printf("\n\r                     ");
+        USBSerial.printf("%d %5d %2.2f %2.2f ",
+                MultiRangingData.RangeData[j].RangeStatus,
+                MultiRangingData.RangeData[j].RangeMilliMeter,
+                MultiRangingData.RangeData[j].SignalRateRtnMegaCps/65536.0,
+                MultiRangingData.RangeData[j].AmbientRateRtnMegaCps/65536.0);        
+      }
+      
+      VL53LX_ClearInterruptAndStartMeasurement(dev);
+      end=micros();
+      USBSerial.printf ("%8.6f", (float)(end-now)*1.0e-6);
+      USBSerial.printf ("\n\r");
+
+    }
+  }
+  USBSerial.printf("End!\n\r");
+
+}
+
+void test_voltage(void)
+{
+  for (uint16_t i=0; i<1000; i++)
+  {
+    USBSerial.printf("Voltage[%03d]:%f\n\r", i, ina3221.getVoltage(INA3221_CH2));
+  }
+}
 
 void ahrs_reset(void)
 {
   Drone_ahrs.reset();
 }
 
+void sensor_init()
+{
+  beep_init();
+ 
+  Wire1.begin(SDA_PIN, SCL_PIN,400000UL);
+  if(scan_i2c()==0)
+  {
+    USBSerial.printf("No I2C device!\r\n");
+    USBSerial.printf("Can not boot AtomFly2.\r\n");
+    while(1);
+  }
+
+  tof_init();
+  imu_init();
+  Drone_ahrs.begin(400.0);
+  ina3221.begin(&Wire1);
+  ina3221.reset();  
+  voltage_filter.set_parameter(0.005, 0.0025);
+  
+  pipo();
+
+  delay(500);
+  //test_imu();
+  //termin();
+  //test_voltage();  
+
+
+  //Acceleration filter
+  //acc_filter.set_parameter(0.005, 0.0025);
+  //while(1);
+}
+
 float sensor_read(void)
 {
+  struct bmi2_sens_data imu_data;
+  float acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z;
   float ax, ay, az, gx, gy, gz, acc_norm, rate_norm;
   float filterd_v;
   static float dp, dq, dr; 
@@ -241,15 +438,21 @@ float sensor_read(void)
   //Y軸：前後（前が正）左肩上がりが回転の正
   //Z軸：上下（上が正）左回りが回転の正
 
-  //IMU.getAccelData(&ax, &ay, &az);
-  //IMU.getGyroData(&gx, &gy, &gz);
+  bmi2_get_sensor_data(&imu_data, pBmi270);
 
-  Accel_x_raw = ay;
-  Accel_y_raw = ax;
-  Accel_z_raw =-az;
-  Roll_rate_raw  =  gy*(float)DEG_TO_RAD;
-  Pitch_rate_raw =  gx*(float)DEG_TO_RAD;
-  Yaw_rate_raw   = -gz*(float)DEG_TO_RAD;
+  acc_x = lsb_to_mps2(imu_data.acc.x, 2.0, 16);
+  acc_y = lsb_to_mps2(imu_data.acc.y, 2.0, 16);
+  acc_z = lsb_to_mps2(imu_data.acc.z, 2.0, 16);
+  gyro_x = lsb_to_rps(imu_data.gyr.x, DPS20002RAD, 16);
+  gyro_y = lsb_to_rps(imu_data.gyr.y, DPS20002RAD, 16);
+  gyro_z = lsb_to_rps(imu_data.gyr.z, DPS20002RAD, 16);
+
+  Accel_x_raw =  acc_y;
+  Accel_y_raw =  acc_x;
+  Accel_z_raw = -acc_z;
+  Roll_rate_raw  =  gyro_y;
+  Pitch_rate_raw =  gyro_x;
+  Yaw_rate_raw   = -gyro_z;
 
   if(Mode > AVERAGE_MODE)
   {
@@ -354,5 +557,3 @@ float x = r13*range;
 float y = r23*range;
 float z = r33*range;
 #endif
-
-

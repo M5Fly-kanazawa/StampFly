@@ -96,16 +96,7 @@ typedef struct {
 	VL53LX_DeviceState   device_state;  /*!< Device State */
 } VL53LX_Dev_t;
 
-
-
-
-
-
 typedef VL53LX_Dev_t* VL53LX_DEV;
-
-
-
-
 
 /**
  * @def VL53LXDevDataGet

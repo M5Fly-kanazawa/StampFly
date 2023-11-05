@@ -51,8 +51,6 @@ unsigned char SPI2C_Buffer[256];
 //#include "esp_log.h"
 #include "driver/i2c.h"
 
-
-
 #define I2C_TIME_OUT_BASE   10
 #define I2C_TIME_OUT_BYTE   1
 
@@ -61,24 +59,16 @@ unsigned char SPI2C_Buffer[256];
 #define trace_i2c(...) VL53LX_trace_print_module_function(VL53LX_TRACE_MODULE_NONE, VL53LX_TRACE_LEVEL_NONE, VL53LX_TRACE_FUNCTION_I2C, ##__VA_ARGS__)
 #endif
 
+
+i2c_cmd_handle_t i2chandle;
+
 //#ifndef HAL_I2C_MODULE_ENABLED
 //#warning "HAL I2C module must be enable "
 //#endif
 //extern I2C_HandleTypeDef hi2c1;
 //#define VL53L0X_pI2cHandle    (&hi2c1)
 
-/* when not customized by application define dummy one */
-#ifndef VL53LX_GetI2cBus
-/** This macro can be overloaded by user to enforce i2c sharing in RTOS context
- */
-#   define VL53LX_GetI2cBus(...) (void)0
-#endif
 
-#ifndef VL53LX_PutI2cBus
-/** This macro can be overloaded by user to enforce i2c sharing in RTOS context
- */
-#   define VL53LX_PutI2cBus(...) (void)0
-#endif
 
 uint8_t _I2CBuffer[256];
 
@@ -90,7 +80,7 @@ uint8_t _I2CBuffer[256];
 #define I2C_MASTER_TX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_RX_BUF_DISABLE   0                          /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_TIMEOUT_MS       1000
-#define I2C_SENSOR_ADDR 0x52 
+//#define I2C_SENSOR_ADDR 0x29
 
 int i2c_master_port = I2C_MASTER_NUM;
 i2c_config_t conf = {
@@ -103,26 +93,60 @@ i2c_config_t conf = {
     .clk_flags = 0,                          // optional; you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here
 };
 
-
-int i2c_init(void)
+/* when not customized by application define dummy one */
+//#ifndef VL53LX_GetI2cBus
+/** This macro can be overloaded by user to enforce i2c sharing in RTOS context
+ */
+//#   define VL53LX_GetI2cBus(...) (void)0
+//#endif
+void VL53LX_GetI2cBus(void)
 {
-    int status;
-    status = i2c_param_config(i2c_master_port, &conf);
-    status = status|i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
+    i2chandle = i2c_cmd_link_create();
+}
+
+//#ifndef VL53LX_PutI2cBus
+///** This macro can be overloaded by user to enforce i2c sharing in RTOS context
+// */
+//#   define VL53LX_PutI2cBus(...) (void)0
+//#endif
+
+void VL53LX_PutI2cBus(void)
+{
+    i2c_master_stop(i2chandle);
+    i2c_master_cmd_begin(i2c_master_port,i2chandle, 1 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(i2chandle);
+}
+
+int vl53lx_i2c_init(void)
+{
+    int status=0;
+    //i2c_driver_delete(i2c_master_port);
+    ets_delay_us(100000);
+    //delay(100);
+    //status = i2c_param_config(i2c_master_port, &conf);
+    //status = status|i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0);
     return status;
 }
 
-
-
 int _I2CWrite(VL53LX_DEV Dev, uint8_t *pdata, uint32_t count) {
     int status;
-    status = i2c_master_write_to_device(i2c_master_port, Dev->i2c_slave_address, pdata, count, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    
+    i2c_master_start(i2chandle);
+    status = i2c_master_write_byte(i2chandle, (Dev->i2c_slave_address<<1)|I2C_MASTER_WRITE, I2C_MASTER_ACK);
+    status = i2c_master_write(i2chandle, pdata, count, I2C_MASTER_ACK);
     return status;
 }
 
 int _I2CRead(VL53LX_DEV Dev, uint8_t *pdata, uint32_t count) {
     int status;
-    status = i2c_master_write_read_device(i2c_master_port, (Dev->i2c_slave_address|1), Dev->I2cDevAddr, 1, pdata, count, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+
+    i2c_master_start(i2chandle);
+    status = i2c_master_write_byte(i2chandle, (Dev->i2c_slave_address<<1)|I2C_MASTER_READ, I2C_MASTER_ACK);
+    if (count>1)
+    {
+        status = i2c_master_read(i2chandle, pdata, count-1, I2C_MASTER_ACK);
+    }
+    status = i2c_master_read_byte(i2chandle, pdata+count-1, I2C_MASTER_NACK);
     return status;
 }
 
@@ -249,6 +273,7 @@ VL53LX_Error VL53LX_RdByte(VL53LX_DEV Dev, uint16_t index, uint8_t *data) {
     if (status_int != 0) {
         Status = VL53LX_ERROR_CONTROL_INTERFACE;
     }
+
 done:
     VL53LX_PutI2cBus();
     return Status;
@@ -273,9 +298,9 @@ VL53LX_Error VL53LX_RdWord(VL53LX_DEV Dev, uint16_t index, uint16_t *data) {
         goto done;
     }
 
-    *data = ((uint16_t)_I2CBuffer[0]<<8) + (uint16_t)_I2CBuffer[1];
 done:
     VL53LX_PutI2cBus();
+    *data = ((uint16_t)_I2CBuffer[0]<<8)+ (uint16_t)_I2CBuffer[1];
     return Status;
 }
 
@@ -297,10 +322,9 @@ VL53LX_Error VL53LX_RdDWord(VL53LX_DEV Dev, uint16_t index, uint32_t *data) {
         goto done;
     }
 
-    *data = ((uint32_t)_I2CBuffer[0]<<24) + ((uint32_t)_I2CBuffer[1]<<16) + ((uint32_t)_I2CBuffer[2]<<8) + (uint32_t)_I2CBuffer[3];
-
 done:
     VL53LX_PutI2cBus();
+    *data = ((uint32_t)_I2CBuffer[0]<<24) + ((uint32_t)_I2CBuffer[1]<<16) + ((uint32_t)_I2CBuffer[2]<<8) + (uint32_t)_I2CBuffer[3];
     return Status;
 }
 
@@ -368,13 +392,15 @@ VL53LX_Error VL53LX_GetTimerFrequency(int32_t *ptimer_freq_hz)
 
 VL53LX_Error VL53LX_WaitMs(VL53LX_Dev_t *pdev, int32_t wait_ms){
 	(void)pdev;
-	delay(wait_ms);
+    ets_delay_us(wait_ms*1000);
+	//delay(wait_ms);
     return VL53LX_ERROR_NONE;
 }
 
 VL53LX_Error VL53LX_WaitUs(VL53LX_Dev_t *pdev, int32_t wait_us){
 	(void)pdev;
-	delay(wait_us/1000);
+    ets_delay_us(wait_us);   
+	//delay(wait_us/1000);
     return VL53LX_ERROR_NONE;
 }
 
