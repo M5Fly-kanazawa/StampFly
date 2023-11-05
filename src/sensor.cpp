@@ -3,8 +3,8 @@
 #include "bmi2.h"
 
 /************ BEEP ************/
+//BeepPWM出力Pinのアサイン
 #define BEEP 40
-//モータPWM出力Pinのアサイン
 
 //モータPWM周波数 
 //Beep PWM Frequency [Hz]
@@ -16,7 +16,7 @@ const int beep_resolution = 12;
 
 //モータチャンネルのアサイン
 //BEEP Channel
-const int beep_channel  = 5;
+const int beep_channel  = 7;
 /************ BEEP ************/
 
 
@@ -57,9 +57,11 @@ void beep_init(void);
 
 void beep_init(void)
 {
+  #if 0
   ledcSetup(beep_channel, (uint32_t)beep_freq, beep_resolution);
   ledcAttachPin(BEEP, beep_channel);
   ledcWrite(beep_channel, (uint32_t)(0));
+  #endif
 }
 
 
@@ -194,9 +196,9 @@ void test_imu(void)
     old = now;
     now = micros();
     bmi2_get_sensor_data(&imu_data, pBmi270);
-    acc_x = lsb_to_mps2(imu_data.acc.x, 2.0, 16);
-    acc_y = lsb_to_mps2(imu_data.acc.y, 2.0, 16);
-    acc_z = lsb_to_mps2(imu_data.acc.z, 2.0, 16);
+    acc_x = lsb_to_mps2(imu_data.acc.x, 8.0, 16);
+    acc_y = lsb_to_mps2(imu_data.acc.y, 8.0, 16);
+    acc_z = lsb_to_mps2(imu_data.acc.z, 8.0, 16);
     gyro_x = lsb_to_rps(imu_data.gyr.x, DPS20002RAD, 16);
     gyro_y = lsb_to_rps(imu_data.gyr.y, DPS20002RAD, 16);
     gyro_z = lsb_to_rps(imu_data.gyr.z, DPS20002RAD, 16);
@@ -403,7 +405,7 @@ void sensor_init()
   ina3221.reset();  
   voltage_filter.set_parameter(0.005, 0.0025);
   
-  pipo();
+  //pipo();
 
   delay(500);
   //test_imu();
@@ -440,9 +442,9 @@ float sensor_read(void)
 
   bmi2_get_sensor_data(&imu_data, pBmi270);
 
-  acc_x = lsb_to_mps2(imu_data.acc.x, 2.0, 16);
-  acc_y = lsb_to_mps2(imu_data.acc.y, 2.0, 16);
-  acc_z = lsb_to_mps2(imu_data.acc.z, 2.0, 16);
+  acc_x = lsb_to_mps2(imu_data.acc.x, 8.0, 16)/GRAVITY_EARTH;
+  acc_y = lsb_to_mps2(imu_data.acc.y, 8.0, 16)/GRAVITY_EARTH;
+  acc_z = lsb_to_mps2(imu_data.acc.z, 8.0, 16)/GRAVITY_EARTH;
   gyro_x = lsb_to_rps(imu_data.gyr.x, DPS20002RAD, 16);
   gyro_y = lsb_to_rps(imu_data.gyr.y, DPS20002RAD, 16);
   gyro_z = lsb_to_rps(imu_data.gyr.z, DPS20002RAD, 16);
@@ -470,7 +472,7 @@ float sensor_read(void)
   #if 1
   acc_norm = sqrt(Accel_x_raw*Accel_x_raw + Accel_y_raw*Accel_y_raw + Accel_z_raw*Accel_z_raw);
   Acc_norm = acc_filter.update(acc_norm);
-  if (Acc_norm>9.0) 
+  if (Acc_norm>7.5) 
   {
     OverG_flag = 1;
     if (Over_g == 0.0)Over_g = acc_norm;

@@ -525,9 +525,9 @@ void rate_control(void)
       //Motor Control
       //正規化Duty
       FrontRight_motor_duty = (Thrust_command +(-Roll_rate_command +Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
-      FrontLeft_motor_duty =  (Thrust_command +( Roll_rate_command +Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
-      RearRight_motor_duty =  (Thrust_command +(-Roll_rate_command -Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
-      RearLeft_motor_duty =   (Thrust_command +( Roll_rate_command -Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      FrontLeft_motor_duty  = (Thrust_command +( Roll_rate_command +Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      RearRight_motor_duty  = (Thrust_command +(-Roll_rate_command -Pitch_rate_command -Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
+      RearLeft_motor_duty   = (Thrust_command +( Roll_rate_command -Pitch_rate_command +Yaw_rate_command)*0.25f)/BATTERY_VOLTAGE;
       
       const float minimum_duty=0.0f;
       const float maximum_duty=0.95f;
@@ -741,7 +741,17 @@ void init_pwm(void)
   ledcAttachPin(pwmFrontRight, FrontRight_motor);
   ledcAttachPin(pwmRearLeft, RearLeft_motor);
   ledcAttachPin(pwmRearRight, RearRight_motor);
+  
+  //motor test
+  for (uint8_t i=1; i<5; i++)
+  {
+    ledcWrite(i, 30);
+    delay(800);
+    ledcWrite(i, 0);
+    delay(500);
+  }
 }
+
 
 uint8_t get_arming_button(void)
 {
@@ -1061,9 +1071,9 @@ void make_telemetry_data(uint8_t* senddata)
   data2log(senddata, RearRight_motor_duty, index);
   index = index + 4;
   //23 RearLeft_motor_duty
-  //data2log(senddata, RearLeft_motor_duty, index);
+  data2log(senddata, RearLeft_motor_duty, index);
   //23 RearLeft_motor_duty
-  data2log(senddata, Altitude, index);
+  //data2log(senddata, Altitude, index);
   index = index + 4;
   //24 Altitude2
   data2log(senddata, Altitude2, index);
