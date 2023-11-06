@@ -19,10 +19,10 @@ const int resolution = 8;
 
 //モータチャンネルのアサイン
 //Motor Channel
-const int FrontLeft_motor  = 1;
-const int FrontRight_motor = 2;
-const int RearLeft_motor   = 3;
-const int RearRight_motor  = 4;
+const int FrontLeft_motor  = 0;
+const int FrontRight_motor = 1;
+const int RearLeft_motor   = 2;
+const int RearRight_motor  = 3;
 
 //制御周期
 //Control period
@@ -742,14 +742,16 @@ void init_pwm(void)
   ledcAttachPin(pwmRearLeft, RearLeft_motor);
   ledcAttachPin(pwmRearRight, RearRight_motor);
   
+  #if 0
   //motor test
-  for (uint8_t i=1; i<5; i++)
+  for (uint8_t i=0; i<4; i++)
   {
     ledcWrite(i, 30);
     delay(800);
     ledcWrite(i, 0);
     delay(500);
   }
+  #endif
 }
 
 

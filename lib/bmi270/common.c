@@ -591,7 +591,7 @@ int8_t set_accel_gyro_config(struct bmi2_dev *bmi)
         config[GYRO].cfg.gyr.range = BMI2_GYR_RANGE_2000;
 
         /* Gyroscope bandwidth parameters. By default the gyro bandwidth is in normal mode. */
-        config[GYRO].cfg.gyr.bwp = BMI2_GYR_NORMAL_MODE;
+        config[GYRO].cfg.gyr.bwp = BMI2_GYR_OSR4_MODE;// BMI2_GYR_NORMAL_MODE;
 
         /* Enable/Disable the noise performance mode for precision yaw rate sensing
          * There are two modes
