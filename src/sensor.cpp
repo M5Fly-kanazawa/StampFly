@@ -443,12 +443,12 @@ float sensor_read(void)
 
   bmi2_get_sensor_data(&imu_data, pBmi270);
 
-  acc_x = lsb_to_mps2(imu_data.acc.x, 4.0, 16)/GRAVITY_EARTH;
-  acc_y = lsb_to_mps2(imu_data.acc.y, 4.0, 16)/GRAVITY_EARTH;
-  acc_z = lsb_to_mps2(imu_data.acc.z, 4.0, 16)/GRAVITY_EARTH;
-  gyro_x = lsb_to_rps(imu_data.gyr.x, DPS10002RAD, 16);
-  gyro_y = lsb_to_rps(imu_data.gyr.y, DPS10002RAD, 16);
-  gyro_z = lsb_to_rps(imu_data.gyr.z, DPS10002RAD, 16);
+  acc_x = lsb_to_mps2(imu_data.acc.x, 8.0, 16)/GRAVITY_EARTH;
+  acc_y = lsb_to_mps2(imu_data.acc.y, 8.0, 16)/GRAVITY_EARTH;
+  acc_z = lsb_to_mps2(imu_data.acc.z, 8.0, 16)/GRAVITY_EARTH;
+  gyro_x = lsb_to_rps(imu_data.gyr.x, DPS20002RAD, 16);
+  gyro_y = lsb_to_rps(imu_data.gyr.y, DPS20002RAD, 16);
+  gyro_z = lsb_to_rps(imu_data.gyr.z, DPS20002RAD, 16);
 
   Accel_x_raw =  acc_y;
   Accel_y_raw =  acc_x;
