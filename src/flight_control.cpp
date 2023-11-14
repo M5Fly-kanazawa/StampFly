@@ -456,7 +456,7 @@ void get_command(void)
   if (Yaw_angle_command<-1.0f)Yaw_angle_command = -1.0f;
   if (Yaw_angle_command> 1.0f)Yaw_angle_command =  1.0f;  
   //Yaw control
-  Yaw_rate_reference   = 1.5f * PI * (Yaw_angle_command - Rudder_center);
+  Yaw_rate_reference   = 2.0f * PI * (Yaw_angle_command - Rudder_center);
 
   if (Control_mode == RATECONTROL)
   {
