@@ -181,6 +181,7 @@ void imu_init(void)
 }
 
 #define DPS20002RAD 34.90658504
+#define DPS10002RAD 17.4532925199
 
 void test_imu(void)
 {
@@ -199,9 +200,9 @@ void test_imu(void)
     acc_x = lsb_to_mps2(imu_data.acc.x, 8.0, 16);
     acc_y = lsb_to_mps2(imu_data.acc.y, 8.0, 16);
     acc_z = lsb_to_mps2(imu_data.acc.z, 8.0, 16);
-    gyro_x = lsb_to_rps(imu_data.gyr.x, DPS20002RAD, 16);
-    gyro_y = lsb_to_rps(imu_data.gyr.y, DPS20002RAD, 16);
-    gyro_z = lsb_to_rps(imu_data.gyr.z, DPS20002RAD, 16);
+    gyro_x = lsb_to_rps(imu_data.gyr.x, DPS10002RAD, 16);
+    gyro_y = lsb_to_rps(imu_data.gyr.y, DPS10002RAD, 16);
+    gyro_z = lsb_to_rps(imu_data.gyr.z, DPS10002RAD, 16);
     USBSerial.printf("%8.4f %7.5f %8.4f %8.4f %8.4f %8.4f %8.4f %8.4f \n\r", 
       (float)(now-st)*1.0e-6,
       (float)(now - old)*1.0e-6,
@@ -442,12 +443,12 @@ float sensor_read(void)
 
   bmi2_get_sensor_data(&imu_data, pBmi270);
 
-  acc_x = lsb_to_mps2(imu_data.acc.x, 8.0, 16)/GRAVITY_EARTH;
-  acc_y = lsb_to_mps2(imu_data.acc.y, 8.0, 16)/GRAVITY_EARTH;
-  acc_z = lsb_to_mps2(imu_data.acc.z, 8.0, 16)/GRAVITY_EARTH;
-  gyro_x = lsb_to_rps(imu_data.gyr.x, DPS20002RAD, 16);
-  gyro_y = lsb_to_rps(imu_data.gyr.y, DPS20002RAD, 16);
-  gyro_z = lsb_to_rps(imu_data.gyr.z, DPS20002RAD, 16);
+  acc_x = lsb_to_mps2(imu_data.acc.x, 4.0, 16)/GRAVITY_EARTH;
+  acc_y = lsb_to_mps2(imu_data.acc.y, 4.0, 16)/GRAVITY_EARTH;
+  acc_z = lsb_to_mps2(imu_data.acc.z, 4.0, 16)/GRAVITY_EARTH;
+  gyro_x = lsb_to_rps(imu_data.gyr.x, DPS10002RAD, 16);
+  gyro_y = lsb_to_rps(imu_data.gyr.y, DPS10002RAD, 16);
+  gyro_z = lsb_to_rps(imu_data.gyr.z, DPS10002RAD, 16);
 
   Accel_x_raw =  acc_y;
   Accel_y_raw =  acc_x;
@@ -472,7 +473,7 @@ float sensor_read(void)
   #if 1
   acc_norm = sqrt(Accel_x_raw*Accel_x_raw + Accel_y_raw*Accel_y_raw + Accel_z_raw*Accel_z_raw);
   Acc_norm = acc_filter.update(acc_norm);
-  if (Acc_norm>7.5) 
+  if (Acc_norm>3.8) 
   {
     OverG_flag = 1;
     if (Over_g == 0.0)Over_g = acc_norm;

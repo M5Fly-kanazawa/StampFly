@@ -30,31 +30,31 @@ const float Control_period = 0.0025f;//400Hz
 
 //PID Gain
 //Rate control PID gain
-const float Roll_rate_kp = 0.6f;//0.65
-const float Roll_rate_ti = 0.7f;//0.7
-const float Roll_rate_td = 0.01;//0.03
-const float Roll_rate_eta = 0.125f;
+const float Roll_rate_kp = 0.6f;//0.6f
+const float Roll_rate_ti = 0.7f;//0.7f
+const float Roll_rate_td = 0.01;//0.01f
+const float Roll_rate_eta = 0.125f;//0.125f
 
-const float Pitch_rate_kp = 0.75f;//0.65
-const float Pitch_rate_ti = 0.7f;//0.7
-const float Pitch_rate_td = 0.025f;//0.03
-const float Pitch_rate_eta = 0.125f;
+const float Pitch_rate_kp = 0.75f;//0.75f
+const float Pitch_rate_ti = 0.7f;//0.7f
+const float Pitch_rate_td = 0.025f;//0.025f
+const float Pitch_rate_eta = 0.125f;//0.125f
 
-const float Yaw_rate_kp = 3.0f;//
-const float Yaw_rate_ti = 0.8f;
-const float Yaw_rate_td = 0.01f;//0.00
-const float Yaw_rate_eta = 0.125f;
+const float Yaw_rate_kp = 3.0f;//3.0f
+const float Yaw_rate_ti = 0.8f;//0.8f
+const float Yaw_rate_td = 0.01f;//0.01f
+const float Yaw_rate_eta = 0.125f;//0.125f
 
 //Angle control PID gain
-const float Rall_angle_kp = 8.0f;//12
-const float Rall_angle_ti = 4.0f;
-const float Rall_angle_td = 0.04f;//0.04
-const float Rall_angle_eta = 0.125f;
+const float Rall_angle_kp = 8.0f;//8.0f
+const float Rall_angle_ti = 4.0f;//4.0f
+const float Rall_angle_td = 0.04f;//0.04f
+const float Rall_angle_eta = 0.125f;//0.125f
 
-const float Pitch_angle_kp = 8.0f;//12
-const float Pitch_angle_ti = 4.0f;
-const float Pitch_angle_td = 0.04f;
-const float Pitch_angle_eta = 0.125f;
+const float Pitch_angle_kp = 8.0f;//8.0f
+const float Pitch_angle_ti = 4.0f;//4.0f
+const float Pitch_angle_td = 0.04f;//0.04f
+const float Pitch_angle_eta = 0.125f;//0.125f
 
 //Times
 volatile float Elapsed_time=0.0f;
@@ -433,9 +433,9 @@ void get_command(void)
   if (thlo>1.0f) thlo = 1.0f;
   if (thlo<0.2f) thlo = 0.0f;
   //Thrust_command = (2.95f*thlo-4.8f*thlo*thlo+2.69f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  Thrust_command = (2.97f*thlo-4.94f*thlo*thlo+2.86f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
+  //Thrust_command = (2.97f*thlo-4.94f*thlo*thlo+2.86f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
 
-  //Thrust_command = thlo*BATTERY_VOLTAGE;
+  Thrust_command = thlo*BATTERY_VOLTAGE;
 
   #ifdef MINIJOYC
   Roll_angle_command = 0.6*Stick[AILERON];

@@ -563,7 +563,7 @@ int8_t set_accel_gyro_config(struct bmi2_dev *bmi)
         config[ACCEL].cfg.acc.odr = BMI2_ACC_ODR_400HZ;
 
         /* Gravity range of the sensor (+/- 2G, 4G, 8G, 16G). */
-        config[ACCEL].cfg.acc.range = BMI2_ACC_RANGE_8G;
+        config[ACCEL].cfg.acc.range = BMI2_ACC_RANGE_4G;
 
         /* The bandwidth parameter is used to configure the number of sensor samples that are averaged
          * if it is set to 2, then 2^(bandwidth parameter) samples
@@ -588,10 +588,10 @@ int8_t set_accel_gyro_config(struct bmi2_dev *bmi)
         config[GYRO].cfg.gyr.odr = BMI2_GYR_ODR_400HZ;
 
         /* Gyroscope Angular Rate Measurement Range.By default the range is 2000dps. */
-        config[GYRO].cfg.gyr.range = BMI2_GYR_RANGE_2000;
+        config[GYRO].cfg.gyr.range = BMI2_GYR_RANGE_1000;//BMI2_GYR_RANGE_2000
 
         /* Gyroscope bandwidth parameters. By default the gyro bandwidth is in normal mode. */
-        config[GYRO].cfg.gyr.bwp = BMI2_GYR_OSR4_MODE;// BMI2_GYR_NORMAL_MODE;
+        config[GYRO].cfg.gyr.bwp = BMI2_GYR_NORMAL_MODE;// BMI2_GYR_OSR4_MODE;
 
         /* Enable/Disable the noise performance mode for precision yaw rate sensing
          * There are two modes
