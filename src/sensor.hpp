@@ -12,6 +12,7 @@
 #include <vl53lx_platform.h>
 #include <stdint.h>
 #include "alt_kalman.hpp"
+#include <driver/spi_master.h>
 
 //#define SDA_PIN (46)
 //#define SCL_PIN (41)
