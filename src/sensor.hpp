@@ -13,11 +13,28 @@
 #include <stdint.h>
 #include "alt_kalman.hpp"
 #include <driver/spi_master.h>
+#include "driver/gpio.h"
+#include "sdkconfig.h"
 
 //#define SDA_PIN (46)
 //#define SCL_PIN (41)
 #define SDA_PIN (3)
 #define SCL_PIN (4)
+
+#define PIN_NUM_MISO (43)
+#define PIN_NUM_MOSI (14)
+#define PIN_NUM_CLK (44)
+#define PIN_CS (46)
+
+typedef struct {
+    spi_host_device_t host; ///< The SPI host used, set before calling `spi_eeprom_init()`
+    gpio_num_t cs_io;       ///< CS gpio number, set before calling `spi_eeprom_init()`
+    gpio_num_t miso_io;     ///< MISO gpio number, set before calling `spi_eeprom_init()`
+    bool intr_used;         ///< Whether to use polling or interrupt when waiting for write to be done. Set before calling `spi_eeprom_init()`.
+} eeprom_config_t;
+
+typedef struct eeprom_context_t* eeprom_handle_t;
+
 
 typedef struct
 {
