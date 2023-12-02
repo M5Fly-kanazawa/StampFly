@@ -13,6 +13,9 @@
 #include "bmi2_defs.h"
 
 #include "driver/i2c.h"
+#include <driver/spi_master.h>
+#include "driver/gpio.h"
+#include "sdkconfig.h"
 
 /******************************************************************************/
 /*!                 Macro definitions                                         */
@@ -136,6 +139,46 @@ BMI2_INTF_RETURN_TYPE bmi2_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, 
     }
     putI2cBus();
     return Status;
+}
+
+void spi_init(void)
+{
+  spi_bus_config_t buscfg = {
+      .mosi_io_num = PIN_NUM_MOSI,
+      .miso_io_num = PIN_NUM_MISO,
+      .sclk_io_num = PIN_NUM_CLK,
+      .quadwp_io_num = -1,
+      .quadhd_io_num = -1,
+      .max_transfer_sz = 1,
+  };
+  //Initialize the SPI bus
+  esp_err_t ret = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
+
+  // SPIデバイスの設定
+  spi_device_interface_config_t devcfg = {
+    .command_bits = 1, // コマンドフェーズのビット長
+    .address_bits = 7, // アドレスフェーズのビット長
+    .dummy_bits = 0, // アドレスフェーズとデータフェーズ間のビット長
+    .mode = 0, // SPIのモード
+    // .duty_cycle_pos 128, // クロックのデューティ比。デフォルト50%
+    // .cs_ena_posttrans = 0, // 半二重通信で送信処理後CSをアクティブにし続けるサイクル数
+    .clock_speed_hz = SPI_MASTER_FREQ_20M, // クロックスピード。80MHz の分周
+    // input_delay_ns: SCLKとMISOの間にある、
+    //   スレーブのデータが有効になるまでの最大遅延時間。
+    //   CSをアクティブにして、MISOが送信されるまでに、追加で遅延を設ける。
+    //   8MHz以上のクロックスピードを使うときに必要だけど、
+    //   正確な値が分からなければ0を設定してね。
+    .input_delay_ns = 0, 
+    .spics_io_num = 0,// CSピン。後ほど設定する
+    // .flags = NULL, // SPI_DEVICE_で始まるフラグを設定できる
+    .queue_size = 1, // transactionのキュー数。1以上の値を入れておく。
+    // .pre_cb // transactionが始まる前に呼ばれる関数をセットできる
+    // .post_cn // transactionが完了した後に呼ばれる関数をセットできる
+  };
+    // SPIデバイスハンドラーを使って通信する
+    spi_device_handle_t spidev;
+
+    ret = spi_bus_add_device(SPI2_HOST, &devcfg, spidev);
 }
 
 /*!

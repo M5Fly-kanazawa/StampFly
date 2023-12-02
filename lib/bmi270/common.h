@@ -28,6 +28,12 @@ void bmi270_dev_init(void);
 #define ACCEL          UINT8_C(0x00)
 #define GYRO           UINT8_C(0x01)
 
+#define PIN_NUM_MISO (43)
+#define PIN_NUM_MOSI (14)
+#define PIN_NUM_CLK (44)
+#define PIN_CS (46)
+
+
 
 /******************************************************************************/
 /*!           Static Function Declaration                                     */

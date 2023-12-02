@@ -56,65 +56,6 @@ volatile uint16_t Range=1000;
 void beep_init(void);
 
 
-void spi_init(void)
-{
-  spi_bus_config_t buscfg = {
-      .mosi_io_num = PIN_NUM_MOSI,
-      .miso_io_num = PIN_NUM_MISO,
-      .sclk_io_num = PIN_NUM_CLK,
-      .quadwp_io_num = -1,
-      .quadhd_io_num = -1,
-      .max_transfer_sz = 32,
-  };
-  //Initialize the SPI bus
-  esp_err_t ret = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
-
-}
-
-esp_err_t spi_read(eeprom_context_t* ctx, uint8_t addr, uint8_t* out_data)
-{
-    spi_transaction_t t = {
-        .cmd = CMD_READ | (addr & ADDR_MASK),
-        .rxlength = 8,
-        .flags = SPI_TRANS_USE_RXDATA,
-        .user = ctx,
-    };
-    esp_err_t err = spi_device_polling_transmit(ctx->spi, &t);
-    if (err != ESP_OK) {
-        return err;
-    }
-
-    *out_data = t.rx_data[0];
-    return ESP_OK;
-}
-
-esp_err_t spi_write(eeprom_context_t* ctx, uint8_t addr, uint8_t data)
-{
-    esp_err_t err;
-    err = spi_device_acquire_bus(ctx->spi, portMAX_DELAY);
-    if (err != ESP_OK) {
-        return err;
-    }
-
-    spi_transaction_t t = {
-        .cmd = CMD_WRITE | (addr & ADDR_MASK),
-        .length = 8,
-        .flags = SPI_TRANS_USE_TXDATA,
-        .tx_data = {data},
-        .user = ctx,
-    };
-    err = spi_device_polling_transmit(ctx->spi, &t);
-
-    if (err == ESP_OK) {
-        err = eeprom_wait_done(ctx);
-    }
-
-    spi_device_release_bus(ctx->spi);
-    return err;
-}
-
-
-
 void beep_init(void)
 {
   #if 0
