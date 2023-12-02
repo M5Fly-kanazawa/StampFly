@@ -41,6 +41,11 @@ struct bmi2_dev *pBmi270=&Bmi270;
 
 i2c_cmd_handle_t i2chandle;
 
+// SPIデバイスハンドラーを使って通信する
+spi_device_handle_t spidev;
+
+
+
 i2c_port_t i2c_port=1;
 
 uint8_t Bmi270_address = 0x69; 
@@ -175,8 +180,6 @@ void spi_init(void)
     // .pre_cb // transactionが始まる前に呼ばれる関数をセットできる
     // .post_cn // transactionが完了した後に呼ばれる関数をセットできる
   };
-    // SPIデバイスハンドラーを使って通信する
-    spi_device_handle_t spidev;
 
     ret = spi_bus_add_device(SPI2_HOST, &devcfg, spidev);
 }
