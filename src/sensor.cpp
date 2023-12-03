@@ -174,6 +174,11 @@ void imu_init(void)
   uint8_t data;
   bmi2_get_regs(0x00, &data, 1, pBmi270);
   USBSerial.printf("BMI270 CHIP ID:%02X\n\r", data);
+  bmi2_get_regs(0x40, &data, 1, pBmi270);
+  USBSerial.printf("BMI270 ACC_CONF:%02X\n\r", data);
+
+
+
   USBSerial.printf("INIT Status:%02X\n\r", bmi270_init(pBmi270));
   USBSerial.printf("Config Status:%02X\n\r", set_accel_gyro_config(pBmi270));
   uint8_t sensor_list[2] = { BMI2_ACCEL, BMI2_GYRO };
