@@ -224,7 +224,7 @@ BMI2_INTF_RETURN_TYPE bmi2_spi_write(uint8_t reg_addr, const uint8_t *reg_data, 
     // flags: SPI_TRANS_ではじまるフラグを設定できる
     trans_ext.base.flags = SPI_TRANS_VARIABLE_ADDR;
     trans_ext.base.cmd = 0;
-    trans_ext.base.addr = (reg_addr&0b01111111)<<1;
+    trans_ext.base.addr = (reg_addr&0b01111111);
     trans_ext.address_bits = 7;
     trans_ext.base.length = len*8; // データ長 bit
     trans_ext.base.tx_buffer = reg_data;

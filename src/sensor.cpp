@@ -176,12 +176,19 @@ void imu_init(void)
   digitalWrite(46, 1);//CSをHIGH
   bmi270_dev_init();
   USBSerial.printf("SPI Initilize status:%d\n\r",spi_init());
+
+  usleep(1000*10);
+
   uint8_t data=0;
   
   USBSerial.printf("Get CHIP ID Dummy Read:%d\n\r",bmi2_get_regs(0x00, &data, 1, pBmi270));
   USBSerial.printf("Get CHIP ID Read:%d\n\r",bmi2_get_regs(0x00, &data, 1, pBmi270));
   USBSerial.printf("BMI270 CHIP ID:%02X\n\r", data);
   
+  USBSerial.printf("Get ACC_CONF Read:%d\n\r",bmi2_get_regs(0x40, &data, 1, pBmi270));
+  USBSerial.printf("Get ACC_CONF Read:%d\n\r",bmi2_get_regs(0x40, &data, 1, pBmi270));
+  USBSerial.printf("BMI270 ACC_CONF:%02X\n\r", data);
+
 
   //USBSerial.printf("POWER_CONF Read:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
   //USBSerial.printf("POWER_CONF:%02X\n\r", data);
