@@ -176,21 +176,21 @@ void imu_init(void)
   digitalWrite(46, 1);//CSをHIGH
   bmi270_dev_init();
   USBSerial.printf("SPI Initilize status:%d\n\r",spi_init());
-  uint8_t data=0;;
+  uint8_t data=0;
   
   USBSerial.printf("Get CHIP ID Dummy Read:%d\n\r",bmi2_get_regs(0x00, &data, 1, pBmi270));
   USBSerial.printf("Get CHIP ID Read:%d\n\r",bmi2_get_regs(0x00, &data, 1, pBmi270));
   USBSerial.printf("BMI270 CHIP ID:%02X\n\r", data);
   
 
-  USBSerial.printf("POWER_CONF Read:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
-  USBSerial.printf("POWER_CONF:%02X\n\r", data);
+  //USBSerial.printf("POWER_CONF Read:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
+  //USBSerial.printf("POWER_CONF:%02X\n\r", data);
   uint8_t set_data = 0x00;
-  USBSerial.printf("POWER_CONF Write:%d\n\r",bmi2_set_regs(0x7C, &set_data, 1, pBmi270));
-  USBSerial.printf("POWER_CONF Read:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
-  USBSerial.printf("POWER_CONF:%02X\n\r", data);
+  //USBSerial.printf("POWER_CONF Write:%d\n\r",bmi2_set_regs(0x7C, &set_data, 1, pBmi270));
+  //USBSerial.printf("POWER_CONF Read:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
+  //USBSerial.printf("POWER_CONF:%02X\n\r", data);
   
-  usleep(500);
+  //usleep(500);
   //set_data = 0x00;
   //USBSerial.printf("INIT_CTRL Write:%d\n\r",bmi2_set_regs(0x59, &set_data, 1, pBmi270));
 
@@ -198,15 +198,15 @@ void imu_init(void)
   //USBSerial.printf("INIT_CTRL Write:%d\n\r",bmi2_set_regs(0x59, &set_data, 1, pBmi270));
 
 
-
-  //USBSerial.printf("GYR_CONF Read:%d\n\r",bmi2_get_regs(0x42, &data, 1, pBmi270));  
-  //USBSerial.printf("GYR_CONF:%02X\n\r", data);
-
-
   USBSerial.printf("INIT Status:%d\n\r", bmi270_init(pBmi270));
-  USBSerial.printf("Config Status:%d\n\r", set_accel_gyro_config(pBmi270));
-  uint8_t sensor_list[2] = { BMI2_ACCEL, BMI2_GYRO };
-  USBSerial.printf("Sensor enable Status:%d\n\r", bmi2_sensor_enable(sensor_list, 2, pBmi270));
+
+  USBSerial.printf("INIT_STATUS Read:%d\n\r",bmi2_get_regs(0x21, &data, 1, pBmi270));  
+  USBSerial.printf("INIT_STATUS:%02X\n\r", data);
+
+
+ // USBSerial.printf("Config Status:%d\n\r", set_accel_gyro_config(pBmi270));
+ // uint8_t sensor_list[2] = { BMI2_ACCEL, BMI2_GYRO };
+ // USBSerial.printf("Sensor enable Status:%d\n\r", bmi2_sensor_enable(sensor_list, 2, pBmi270));
 }
 
 #define DPS20002RAD 34.90658504
