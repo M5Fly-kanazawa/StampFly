@@ -1911,7 +1911,7 @@ int8_t bmi2_sec_init(struct bmi2_dev *dev)
         {
             /* Read chip-id of the BMI2 sensor */
             rslt = bmi2_get_regs(BMI2_CHIP_ID_ADDR, &chip_id, 1, dev);
-
+            #if 1
             if (rslt == BMI2_OK)
             {
                 /* Validate chip-id */
@@ -1942,6 +1942,7 @@ int8_t bmi2_sec_init(struct bmi2_dev *dev)
                     rslt = BMI2_E_DEV_NOT_FOUND;
                 }
             }
+            #endif
         }
     }
 

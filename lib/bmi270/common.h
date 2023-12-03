@@ -16,6 +16,14 @@ extern "C" {
 #include <stdbool.h>
 #include <math.h>
 #include "bmi2.h"
+#include "bmi2_defs.h"
+#include "driver/i2c.h"
+#include <driver/spi_master.h>
+#include "driver/gpio.h"
+#include "sdkconfig.h"
+
+
+
 //#include "coines.h"
 
 
@@ -33,7 +41,7 @@ void bmi270_dev_init(void);
 #define PIN_NUM_CLK (44)
 #define PIN_CS (46)
 
-
+esp_err_t spi_init(void);
 
 /******************************************************************************/
 /*!           Static Function Declaration                                     */

@@ -10,12 +10,12 @@
 #include <string.h>
 
 #include "common.h"
-#include "bmi2_defs.h"
+//#include "bmi2_defs.h"
 
-#include "driver/i2c.h"
-#include <driver/spi_master.h>
-#include "driver/gpio.h"
-#include "sdkconfig.h"
+//#include "driver/i2c.h"
+//#include <driver/spi_master.h>
+//#include "driver/gpio.h"
+//#include "sdkconfig.h"
 
 /******************************************************************************/
 /*!                 Macro definitions                                         */
@@ -56,9 +56,9 @@ struct bmi2_sens_config config;
 
 void bmi270_dev_init(void)
 {
-  Bmi270.intf = BMI2_I2C_INTF;
-  Bmi270.read = bmi2_i2c_read;
-  Bmi270.write =bmi2_i2c_write;
+  Bmi270.intf = BMI2_SPI_INTF;
+  Bmi270.read = bmi2_spi_read;
+  Bmi270.write =bmi2_spi_write;
   Bmi270.delay_us = bmi2_delay_us;
   Bmi270.dummy_byte = 0;
   Bmi270.gyro_en = 1;
@@ -146,21 +146,18 @@ BMI2_INTF_RETURN_TYPE bmi2_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, 
     return Status;
 }
 
-void spi_init(void)
-{
-  spi_bus_config_t buscfg = {
-      .mosi_io_num = PIN_NUM_MOSI,
-      .miso_io_num = PIN_NUM_MISO,
-      .sclk_io_num = PIN_NUM_CLK,
-      .quadwp_io_num = -1,
-      .quadhd_io_num = -1,
-      .max_transfer_sz = 1,
-  };
-  //Initialize the SPI bus
-  esp_err_t ret = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
+//SPIバスの設定
+spi_bus_config_t buscfg = {
+    .mosi_io_num = PIN_NUM_MOSI,
+    .miso_io_num = PIN_NUM_MISO,
+    .sclk_io_num = PIN_NUM_CLK,
+    .quadwp_io_num = -1,
+    .quadhd_io_num = -1,
+    .max_transfer_sz = 256,
+};
 
-  // SPIデバイスの設定
-  spi_device_interface_config_t devcfg = {
+// SPIデバイスの設定
+spi_device_interface_config_t devcfg = {
     .command_bits = 1, // コマンドフェーズのビット長
     .address_bits = 7, // アドレスフェーズのビット長
     .dummy_bits = 0, // アドレスフェーズとデータフェーズ間のビット長
@@ -174,27 +171,46 @@ void spi_init(void)
     //   8MHz以上のクロックスピードを使うときに必要だけど、
     //   正確な値が分からなければ0を設定してね。
     .input_delay_ns = 0, 
-    .spics_io_num = 0,// CSピン。後ほど設定する
+    .spics_io_num = 46,// CSピン。後ほど設定するBMI270のCSはG46
     // .flags = NULL, // SPI_DEVICE_で始まるフラグを設定できる
     .queue_size = 1, // transactionのキュー数。1以上の値を入れておく。
     // .pre_cb // transactionが始まる前に呼ばれる関数をセットできる
     // .post_cn // transactionが完了した後に呼ばれる関数をセットできる
-  };
+};
 
-    ret = spi_bus_add_device(SPI2_HOST, &devcfg, spidev);
+
+esp_err_t spi_init(void)
+{
+    //Initialize the SPI bus
+    esp_err_t ret = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
+    if(ret != ESP_OK) return ret;
+
+    ret = spi_bus_add_device(SPI2_HOST, &devcfg, &spidev);
+    return ret;
 }
 
+
 /*!
- * SPI read function map to COINES platform
+ * SPI read function
  */
 BMI2_INTF_RETURN_TYPE bmi2_spi_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len, void *intf_ptr)
 {
-    #if 0
-    struct coines_intf_config intf_info = *(struct coines_intf_config *)intf_ptr;
-
-    return coines_read_spi(intf_info.bus, intf_info.dev_addr, reg_addr, reg_data, (uint16_t)len);
-    #endif
-    return 0;
+    // データ読み込み
+    spi_transaction_ext_t trans_ext;
+    memset(&trans_ext, 0, sizeof(trans_ext)); // 構造体をゼロで初期化
+    // flags: SPI_TRANS_ではじまるフラグを設定できる
+    trans_ext.base.flags = SPI_TRANS_VARIABLE_ADDR;
+    trans_ext.base.cmd = 1;
+    trans_ext.base.addr = (reg_addr&0b01111111)*16;
+    trans_ext.address_bits = 7+8;
+    trans_ext.base.length = len*8; // データ長 bit
+    trans_ext.base.rx_buffer = reg_data;
+        
+    // 通信開始
+    esp_err_t ret;
+    ret=spi_device_polling_transmit(spidev, (spi_transaction_t*)&trans_ext);
+    assert(ret==ESP_OK);
+    return ret;
 }
 
 /*!
@@ -202,12 +218,22 @@ BMI2_INTF_RETURN_TYPE bmi2_spi_read(uint8_t reg_addr, uint8_t *reg_data, uint32_
  */
 BMI2_INTF_RETURN_TYPE bmi2_spi_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t len, void *intf_ptr)
 {
-    #if 0
-    struct coines_intf_config intf_info = *(struct coines_intf_config *)intf_ptr;
-
-    return coines_write_spi(intf_info.bus, intf_info.dev_addr, reg_addr, (uint8_t *)reg_data, (uint16_t)len);
-    #endif
-    return 0;
+    // データ書き込み
+    spi_transaction_ext_t trans_ext;
+    memset(&trans_ext, 0, sizeof(trans_ext)); // 構造体をゼロで初期化
+    // flags: SPI_TRANS_ではじまるフラグを設定できる
+    trans_ext.base.flags = SPI_TRANS_VARIABLE_ADDR;
+    trans_ext.base.cmd = 0;
+    trans_ext.base.addr = (reg_addr&0b01111111);
+    trans_ext.address_bits = 7;
+    trans_ext.base.length = len*8; // データ長 bit
+    trans_ext.base.tx_buffer = reg_data;
+        
+    // 通信開始
+    esp_err_t ret;
+    ret=spi_device_polling_transmit(spidev, (spi_transaction_t*)&trans_ext);
+    assert(ret==ESP_OK);
+    return ret;
 }
 
 /*!

@@ -1358,6 +1358,7 @@ int8_t bmi270_init(struct bmi2_dev *dev)
 
     /* Null-pointer check */
     rslt = null_ptr_check(dev);
+    
     if (rslt == BMI2_OK)
     {
         /* Assign chip id of BMI270 */
@@ -1372,7 +1373,7 @@ int8_t bmi270_init(struct bmi2_dev *dev)
         /* An extra dummy byte is read during SPI read */
         if (dev->intf == BMI2_SPI_INTF)
         {
-            dev->dummy_byte = 1;
+            dev->dummy_byte = 0;
         }
         else
         {
@@ -1390,6 +1391,7 @@ int8_t bmi270_init(struct bmi2_dev *dev)
 
         /* Initialize BMI2 sensor */
         rslt = bmi2_sec_init(dev);
+        #if 1
         if (rslt == BMI2_OK)
         {
             /* Assign the offsets of the feature input
@@ -1430,8 +1432,9 @@ int8_t bmi270_init(struct bmi2_dev *dev)
             /* Get the gyroscope cross axis sensitivity */
             rslt = bmi2_get_gyro_cross_sense(dev);
         }
+        #endif
     }
-
+    
     return rslt;
 }
 
