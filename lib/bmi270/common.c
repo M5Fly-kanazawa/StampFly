@@ -153,29 +153,24 @@ spi_bus_config_t buscfg = {
     .sclk_io_num = PIN_NUM_CLK,
     .quadwp_io_num = -1,
     .quadhd_io_num = -1,
-    .max_transfer_sz = 256,
+    .max_transfer_sz = 4096*2,
 };
 
 // SPIデバイスの設定
 spi_device_interface_config_t devcfg = {
-    .command_bits = 1, // コマンドフェーズのビット長
-    .address_bits = 7, // アドレスフェーズのビット長
-    .dummy_bits = 0, // アドレスフェーズとデータフェーズ間のビット長
-    .mode = 0, // SPIのモード
-    // .duty_cycle_pos 128, // クロックのデューティ比。デフォルト50%
-    // .cs_ena_posttrans = 0, // 半二重通信で送信処理後CSをアクティブにし続けるサイクル数
-    .clock_speed_hz = SPI_MASTER_FREQ_20M, // クロックスピード。80MHz の分周
-    // input_delay_ns: SCLKとMISOの間にある、
-    //   スレーブのデータが有効になるまでの最大遅延時間。
-    //   CSをアクティブにして、MISOが送信されるまでに、追加で遅延を設ける。
-    //   8MHz以上のクロックスピードを使うときに必要だけど、
-    //   正確な値が分からなければ0を設定してね。
-    .input_delay_ns = 0, 
-    .spics_io_num = 46,// CSピン。後ほど設定するBMI270のCSはG46
-    // .flags = NULL, // SPI_DEVICE_で始まるフラグを設定できる
-    .queue_size = 1, // transactionのキュー数。1以上の値を入れておく。
-    // .pre_cb // transactionが始まる前に呼ばれる関数をセットできる
-    // .post_cn // transactionが完了した後に呼ばれる関数をセットできる
+    .command_bits = 0,
+    .address_bits = 0,
+    .dummy_bits = 0,
+    .mode = 0,
+    .duty_cycle_pos = 128,  // default 128 = 50%/50% duty
+    .cs_ena_pretrans = 0, // 0 not used
+    .cs_ena_posttrans = 0,  // 0 not used
+    .clock_speed_hz = SPI_MASTER_FREQ_20M,
+    .spics_io_num = 46,
+    .flags = 0,  // 0 not used
+    .queue_size = 10,// transactionのキュー数。1以上の値を入れておく。
+    .pre_cb = NULL,// transactionが始まる前に呼ばれる関数をセットできる
+    .post_cb = NULL,// transactionが完了した後に呼ばれる関数をセットできる
 };
 
 
@@ -196,19 +191,29 @@ esp_err_t spi_init(void)
 BMI2_INTF_RETURN_TYPE bmi2_spi_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len, void *intf_ptr)
 {
     // データ読み込み
-    spi_transaction_ext_t trans_ext;
-    memset(&trans_ext, 0, sizeof(trans_ext)); // 構造体をゼロで初期化
-    // flags: SPI_TRANS_ではじまるフラグを設定できる
-    trans_ext.base.flags = SPI_TRANS_VARIABLE_ADDR;
-    trans_ext.base.cmd = 1;
-    trans_ext.base.addr = ((reg_addr&0b01111111)*16)<<1;
-    trans_ext.address_bits = 7+8;
-    trans_ext.base.length = len*8; // データ長 bit
-    trans_ext.base.rx_buffer = reg_data;
-        
-    // 通信開始
+    spi_transaction_t trans;
     esp_err_t ret;
-    ret=spi_device_polling_transmit(spidev, (spi_transaction_t*)&trans_ext);
+
+    memset(&trans, 0, sizeof(trans)); // 構造体をゼロで初期化
+    trans.flags = SPI_TRANS_CS_KEEP_ACTIVE|SPI_TRANS_USE_TXDATA;
+    //trans.tx_buffer =NULL;
+    trans.rx_buffer =NULL;
+    trans.length = 16;
+    trans.tx_data[0]=reg_addr|0x80;
+    trans.tx_data[1]=0x00;
+    // アドレス+ダミーバイト送信
+    spi_device_acquire_bus(spidev, portMAX_DELAY);
+    ret=spi_device_polling_transmit(spidev, &trans);
+    if(ret==ESP_OK)
+    {
+        memset(&trans, 0, sizeof(trans)); // 構造体をゼロで初期化
+        trans.tx_buffer =NULL;
+        trans.length=8*len;
+        trans.rx_buffer = reg_data;
+        ret=spi_device_polling_transmit(spidev, &trans);
+        
+    }
+    spi_device_release_bus(spidev);
     assert(ret==ESP_OK);
     return ret;
 }
@@ -218,21 +223,25 @@ BMI2_INTF_RETURN_TYPE bmi2_spi_read(uint8_t reg_addr, uint8_t *reg_data, uint32_
  */
 BMI2_INTF_RETURN_TYPE bmi2_spi_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t len, void *intf_ptr)
 {
-    // データ書き込み
-    spi_transaction_ext_t trans_ext;
-    memset(&trans_ext, 0, sizeof(trans_ext)); // 構造体をゼロで初期化
-    // flags: SPI_TRANS_ではじまるフラグを設定できる
-    trans_ext.base.flags = SPI_TRANS_VARIABLE_ADDR;
-    trans_ext.base.cmd = 0;
-    trans_ext.base.addr = (reg_addr&0b01111111);
-    trans_ext.address_bits = 7;
-    trans_ext.base.length = len*8; // データ長 bit
-    trans_ext.base.tx_buffer = reg_data;
-        
-    // 通信開始
+    spi_transaction_t trans;
     esp_err_t ret;
-    ret=spi_device_polling_transmit(spidev, (spi_transaction_t*)&trans_ext);
+
+    _I2CBuffer[0] = reg_addr&0x7f;
+    memcpy(&_I2CBuffer[1], reg_data, len);
+
+    memset(&trans, 0, sizeof(trans)); // 構造体をゼロで初期化
+    // データ書き込み
+    trans.tx_buffer = _I2CBuffer;
+    trans.rx_buffer = NULL;
+    trans.length = (len+1)*8;
+    //trans.rxlength = 0 ;
+
+    // アドレス+データ送信
+    //spi_device_acquire_bus(spidev, portMAX_DELAY);
+    ret = spi_device_polling_transmit(spidev, &trans);
     assert(ret==ESP_OK);
+    //spi_device_release_bus(spidev);
+    
     return ret;
 }
 

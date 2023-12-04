@@ -185,19 +185,21 @@ void imu_init(void)
   USBSerial.printf("Get CHIP ID Read:%d\n\r",bmi2_get_regs(0x00, &data, 1, pBmi270));
   USBSerial.printf("BMI270 CHIP ID:%02X\n\r", data);
   
-  USBSerial.printf("Get ACC_CONF Read:%d\n\r",bmi2_get_regs(0x40, &data, 1, pBmi270));
-  USBSerial.printf("Get ACC_CONF Read:%d\n\r",bmi2_get_regs(0x40, &data, 1, pBmi270));
-  USBSerial.printf("BMI270 ACC_CONF:%02X\n\r", data);
+  //USBSerial.printf("Get ACC_CONF Dummy Read:%d\n\r",bmi2_get_regs(0x40, &data, 1, pBmi270));
+  //USBSerial.printf("Get ACC_CONF Read:%d\n\r",bmi2_get_regs(0x40, &data, 1, pBmi270));
+  //USBSerial.printf("BMI270 ACC_CONF(0xA8):%02X\n\r", data);
 
 
-  //USBSerial.printf("POWER_CONF Read:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
-  //USBSerial.printf("POWER_CONF:%02X\n\r", data);
-  uint8_t set_data = 0x00;
-  //USBSerial.printf("POWER_CONF Write:%d\n\r",bmi2_set_regs(0x7C, &set_data, 1, pBmi270));
-  //USBSerial.printf("POWER_CONF Read:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
-  //USBSerial.printf("POWER_CONF:%02X\n\r", data);
+  //USBSerial.printf("POWER_CONF Read Status:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
+  //USBSerial.printf("POWER_CONF(0x03):%02X\n\r", data);
+  //uint8_t set_data = 0x00;
+  //USBSerial.printf("POWER_CONF Write Status:%d\n\r",bmi2_set_regs(0x7C, &set_data, 1, pBmi270));
   
   //usleep(500);
+  //USBSerial.printf("POWER_CONF Read Status:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
+  //USBSerial.printf("POWER_CONF(0x00):%02X\n\r", data);
+  
+  
   //set_data = 0x00;
   //USBSerial.printf("INIT_CTRL Write:%d\n\r",bmi2_set_regs(0x59, &set_data, 1, pBmi270));
 
@@ -207,6 +209,7 @@ void imu_init(void)
 
   USBSerial.printf("INIT Status:%d\n\r", bmi270_init(pBmi270));
 
+  usleep(500);
   USBSerial.printf("INIT_STATUS Read:%d\n\r",bmi2_get_regs(0x21, &data, 1, pBmi270));  
   USBSerial.printf("INIT_STATUS:%02X\n\r", data);
 
