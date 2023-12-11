@@ -185,7 +185,7 @@ void init_copter(void)
   led_onboard[0]=WHITE;
   led_onboard[1]=WHITE;
 
-  FastLED.show();
+  //FastLED.show();
 
   //Initialize Serial communication
   USBSerial.begin(115200);
@@ -231,7 +231,7 @@ void loop_400Hz(void)
   sense_time = sensor_read();
   uint32_t cs_time = micros();
 
-  led_drive();
+  //led_drive();
 
   //Begin Mode select
   if (Mode == INIT_MODE)
