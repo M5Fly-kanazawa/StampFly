@@ -173,43 +173,16 @@ void imu_init(void)
 {
   USBSerial.printf("Start IMU Initialize!\n\r");
   pinMode(46, OUTPUT);//CSを設定
-  digitalWrite(46, 1);//CSをHIGH
+  digitalWrite(46, 0);//CSをHIGH
   bmi270_dev_init();
   USBSerial.printf("SPI Initilize status:%d\n\r",spi_init());
 
   usleep(1000*10);
 
   uint8_t data=0;
-  
-  USBSerial.printf("Get CHIP ID Dummy Read:%d\n\r",bmi2_get_regs(0x00, &data, 1, pBmi270));
-  USBSerial.printf("Get CHIP ID Read:%d\n\r",bmi2_get_regs(0x00, &data, 1, pBmi270));
-  USBSerial.printf("BMI270 CHIP ID:%02X\n\r", data);
-  
-  //USBSerial.printf("Get ACC_CONF Dummy Read:%d\n\r",bmi2_get_regs(0x40, &data, 1, pBmi270));
-  //USBSerial.printf("Get ACC_CONF Read:%d\n\r",bmi2_get_regs(0x40, &data, 1, pBmi270));
-  //USBSerial.printf("BMI270 ACC_CONF(0xA8):%02X\n\r", data);
-
-
-  //USBSerial.printf("POWER_CONF Read Status:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
-  //USBSerial.printf("POWER_CONF(0x03):%02X\n\r", data);
-  //uint8_t set_data = 0x00;
-  //USBSerial.printf("POWER_CONF Write Status:%d\n\r",bmi2_set_regs(0x7C, &set_data, 1, pBmi270));
-  
-  //usleep(500);
-  //USBSerial.printf("POWER_CONF Read Status:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
-  //USBSerial.printf("POWER_CONF(0x00):%02X\n\r", data);
-  
-  
-  //set_data = 0x00;
-  //USBSerial.printf("INIT_CTRL Write:%d\n\r",bmi2_set_regs(0x59, &set_data, 1, pBmi270));
-
-  //set_data = 0x01;
-  //USBSerial.printf("INIT_CTRL Write:%d\n\r",bmi2_set_regs(0x59, &set_data, 1, pBmi270));
-
-
+  //USBSerial.printf("Chip ID DEV:%02X\n\r", Bmi270.chip_id);
   USBSerial.printf("INIT Status:%d\n\r", bmi270_init(pBmi270));
-
-  usleep(500);
+  USBSerial.printf("Chip ID DEV:%02X\n\r", Bmi270.chip_id);
   USBSerial.printf("INIT_STATUS Read:%d\n\r",bmi2_get_regs(0x21, &data, 1, pBmi270));  
   USBSerial.printf("INIT_STATUS:%02X\n\r", data);
 
@@ -226,6 +199,7 @@ void test_imu(void)
 {
   u_long st, now, old, end;
   uint16_t count;
+  uint8_t ret;
   st=micros();
   now = st;
   old = st;
@@ -235,13 +209,15 @@ void test_imu(void)
   {
     old = now;
     now = micros();
-    bmi2_get_sensor_data(&imu_data, pBmi270);
+    ret = bmi2_get_sensor_data(&imu_data, pBmi270);
+    USBSerial.printf("%d\n\r", ret);
     acc_x = lsb_to_mps2(imu_data.acc.x, 8.0, 16);
     acc_y = lsb_to_mps2(imu_data.acc.y, 8.0, 16);
     acc_z = lsb_to_mps2(imu_data.acc.z, 8.0, 16);
     gyro_x = lsb_to_rps(imu_data.gyr.x, DPS10002RAD, 16);
     gyro_y = lsb_to_rps(imu_data.gyr.y, DPS10002RAD, 16);
     gyro_z = lsb_to_rps(imu_data.gyr.z, DPS10002RAD, 16);
+    #if 0
     USBSerial.printf("%8.4f %7.5f %8.4f %8.4f %8.4f %8.4f %8.4f %8.4f \n\r", 
       (float)(now-st)*1.0e-6,
       (float)(now - old)*1.0e-6,
@@ -251,7 +227,9 @@ void test_imu(void)
       gyro_x,
       gyro_y,
       gyro_z);
+  #endif
   }
+  
 }
 
 void termin(void)
@@ -448,7 +426,7 @@ void sensor_init()
   //pipo();
 
   delay(500);
-  //test_imu();
+  test_imu();
   //termin();
   //test_voltage();  
 

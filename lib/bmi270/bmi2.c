@@ -2257,7 +2257,7 @@ int8_t bmi2_write_config_file(struct bmi2_dev *dev)
             /* Return error if loading not successful */
             if ((rslt == BMI2_OK) && (load_status != BMI2_CONFIG_LOAD_SUCCESS))
             {
-                rslt = BMI2_E_CONFIG_LOAD;
+                rslt = BMI2_E_CONFIG_LOAD;//このエラーで止まる############################################
             }
         }
     }

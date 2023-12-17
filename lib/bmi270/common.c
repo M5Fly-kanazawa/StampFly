@@ -57,10 +57,11 @@ struct bmi2_sens_config config;
 void bmi270_dev_init(void)
 {
   Bmi270.intf = BMI2_SPI_INTF;
+  //Bmi270.chip_id = 0x24;
   Bmi270.read = bmi2_spi_read;
   Bmi270.write =bmi2_spi_write;
   Bmi270.delay_us = bmi2_delay_us;
-  Bmi270.dummy_byte = 0;
+  Bmi270.dummy_byte = 1;
   Bmi270.gyro_en = 1;
 }
 
@@ -165,7 +166,7 @@ spi_device_interface_config_t devcfg = {
     .duty_cycle_pos = 128,  // default 128 = 50%/50% duty
     .cs_ena_pretrans = 0, // 0 not used
     .cs_ena_posttrans = 0,  // 0 not used
-    .clock_speed_hz = SPI_MASTER_FREQ_20M,
+    .clock_speed_hz = SPI_MASTER_FREQ_9M,// 8,9,10,11,13,16,20,26,40,80
     .spics_io_num = 46,
     .flags = 0,  // 0 not used
     .queue_size = 10,// transactionのキュー数。1以上の値を入れておく。
@@ -190,30 +191,26 @@ esp_err_t spi_init(void)
  */
 BMI2_INTF_RETURN_TYPE bmi2_spi_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len, void *intf_ptr)
 {
-    // データ読み込み
+    // 読み込み
     spi_transaction_t trans;
-    esp_err_t ret;
+    esp_err_t ret=0;
 
     memset(&trans, 0, sizeof(trans)); // 構造体をゼロで初期化
-    trans.flags = SPI_TRANS_CS_KEEP_ACTIVE|SPI_TRANS_USE_TXDATA;
-    //trans.tx_buffer =NULL;
-    trans.rx_buffer =NULL;
-    trans.length = 16;
-    trans.tx_data[0]=reg_addr|0x80;
-    trans.tx_data[1]=0x00;
-    // アドレス+ダミーバイト送信
-    spi_device_acquire_bus(spidev, portMAX_DELAY);
+    
+    _I2CBuffer[0]=reg_addr|0x80;
+    //3Byte書き込み、読み込み
+    //trans.flags = SPI_TRANS_CS_KEEP_ACTIVE|SPI_TRANS_USE_TXDATA;
+    //trans.flags = SPI_TRANS_USE_TXDATA;
+    trans.tx_buffer =_I2CBuffer;
+    trans.rx_buffer =reg_data;
+    trans.length = 8+len*8;
     ret=spi_device_polling_transmit(spidev, &trans);
-    if(ret==ESP_OK)
+    uint16_t index = 0;
+    while(index<len)
     {
-        memset(&trans, 0, sizeof(trans)); // 構造体をゼロで初期化
-        trans.tx_buffer =NULL;
-        trans.length=8*len;
-        trans.rx_buffer = reg_data;
-        ret=spi_device_polling_transmit(spidev, &trans);
-        
+        reg_data[index]=reg_data[index+1];
+        index++;
     }
-    spi_device_release_bus(spidev);
     assert(ret==ESP_OK);
     return ret;
 }
@@ -225,23 +222,29 @@ BMI2_INTF_RETURN_TYPE bmi2_spi_write(uint8_t reg_addr, const uint8_t *reg_data, 
 {
     spi_transaction_t trans;
     esp_err_t ret;
+    //uint8_t buffer[3];
+    uint8_t tmp;
 
-    _I2CBuffer[0] = reg_addr&0x7f;
+    _I2CBuffer[0] = reg_addr&0b01111111;
     memcpy(&_I2CBuffer[1], reg_data, len);
-
     memset(&trans, 0, sizeof(trans)); // 構造体をゼロで初期化
-    // データ書き込み
+    
+    //buffer[0]=0x7C;
+    //buffer[1]=0;
+    //buffer[2]=4;
+
+    // アドレス+データの書き込み
     trans.tx_buffer = _I2CBuffer;
     trans.rx_buffer = NULL;
-    trans.length = (len+1)*8;
-    //trans.rxlength = 0 ;
+    trans.length = 8+len*8;
+    trans.rxlength = 0;
 
-    // アドレス+データ送信
-    //spi_device_acquire_bus(spidev, portMAX_DELAY);
+    //書き込み
     ret = spi_device_polling_transmit(spidev, &trans);
     assert(ret==ESP_OK);
-    //spi_device_release_bus(spidev);
     
+    //spi_device_release_bus(spidev);
+
     return ret;
 }
 

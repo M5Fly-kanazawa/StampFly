@@ -1373,7 +1373,7 @@ int8_t bmi270_init(struct bmi2_dev *dev)
         /* An extra dummy byte is read during SPI read */
         if (dev->intf == BMI2_SPI_INTF)
         {
-            dev->dummy_byte = 0;
+            dev->dummy_byte = 1;
         }
         else
         {
