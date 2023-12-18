@@ -432,9 +432,8 @@ void get_command(void)
   if (thlo>1.0f) thlo = 1.0f;
   if (thlo<0.2f) thlo = 0.0f;
   //Thrust_command = (2.95f*thlo-4.8f*thlo*thlo+2.69f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-  //Thrust_command = (2.97f*thlo-4.94f*thlo*thlo+2.86f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
-
-  Thrust_command = thlo*BATTERY_VOLTAGE;
+  Thrust_command = (2.97f*thlo-4.94f*thlo*thlo+2.86f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
+  //Thrust_command = thlo*BATTERY_VOLTAGE;
 
   #ifdef MINIJOYC
   Roll_angle_command = 0.6*Stick[AILERON];

@@ -182,6 +182,8 @@ void imu_init(void)
   //BMI270 Init
   USBSerial.printf("#INIT Status:%d\n\r", bmi270_init(pBmi270));
   USBSerial.printf("#Chip ID DEV:%02X\n\r", Bmi270.chip_id);
+  USBSerial.printf("#APP_STATUS:%02X\n\r", Bmi270.aps_status);
+  
   USBSerial.printf("#INIT_STATUS Read:%d\n\r",bmi2_get_regs(0x21, &data, 1, pBmi270));  
   USBSerial.printf("#INIT_STATUS:%02X\n\r", data);
   //IMU Config
