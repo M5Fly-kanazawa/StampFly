@@ -445,6 +445,8 @@ void sensor_init()
   ina3221.reset();  
   voltage_filter.set_parameter(0.005, 0.0025);
   
+  //test_ranging();
+
   //pipo();
 
   delay(500);
@@ -531,7 +533,7 @@ float sensor_read(void)
   uint32_t mt=micros();
   //Altitude
   
-  #if 0
+  #if 1
   //Get Altitude (30Hz)
   if (dcnt>interval)
   {

@@ -431,6 +431,7 @@ const float z_dot_eta = 0.125f;
 
 //Altitude Control variables
 const float Thrust0_nominal = 0.63;
+volatile float Thrust0=0.0;
 uint8_t Alt_flag = 0;
 uint8_t Alt_control_ok=0;
 
@@ -512,7 +513,6 @@ void get_command(void)
     else Thrust_command = (Thrust0 + altitude_control(0))*BATTERY_VOLTAGE;
     #endif
   }
-
 
   //Thrust_command = thlo*BATTERY_VOLTAGE;
 
