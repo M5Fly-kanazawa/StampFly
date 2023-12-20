@@ -142,6 +142,7 @@ void IRAM_ATTR tof_int()
 
 void tof_range_get(VL53LX_DEV dev)
 {
+  uint16_t range;
   VL53LX_MultiRangingData_t MultiRangingData;
   VL53LX_MultiRangingData_t *pMultiRangingData=&MultiRangingData;
 
@@ -149,7 +150,7 @@ void tof_range_get(VL53LX_DEV dev)
   uint8_t no_of_object_found=pMultiRangingData->NumberOfObjectsFound;
   if(no_of_object_found!=0)
   {
-    Range = MultiRangingData.RangeData[0].RangeMilliMeter;
+    range = MultiRangingData.RangeData[0].RangeMilliMeter;
     #if 0
     for(uint8_t j=0;j<no_of_object_found;j++){
           if(j!=0)USBSerial.printf("\n\r                     ");
@@ -163,6 +164,7 @@ void tof_range_get(VL53LX_DEV dev)
         
   }
   VL53LX_ClearInterruptAndStartMeasurement(dev);
+  return range;
 }
 
 float acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z;
@@ -533,21 +535,18 @@ float sensor_read(void)
   //Altitude
   #if 1
   //Get Altitude (30Hz)
-  if (dcnt == 0) tof.startMeasurement();
   if (dcnt>interval)
   {
-    if(is_finish_ranging())
+    if(ToF_bottom_data_ready_flag)
     {
-      dist = tof.readRangeResult();
-      if(dist>2000)dist = (uint16_t)Altitude;
+      ToF_bottom_data_ready_flag = 0;
+      dist=tof_range_get(ToF_bottom);
       Altitude = (float)dist;
       dcnt=0u;
-      Alt_control_ok = 1;//距離データが得られたら制御をしても良いフラグを立てる
-      EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
-      Altitude2 = EstimatedAltitude.Altitude;
-      Alt_velocity = EstimatedAltitude.Velocity;
     }
-    else dcnt++;
+    EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
+    Altitude2 = EstimatedAltitude.Altitude;
+    Alt_velocity = EstimatedAltitude.Velocity;
   }
   else dcnt++;
   #endif
