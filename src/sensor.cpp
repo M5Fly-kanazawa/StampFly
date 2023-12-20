@@ -531,21 +531,25 @@ float sensor_read(void)
     if ( Under_voltage_flag > UNDER_VOLTAGE_COUNT) Under_voltage_flag = UNDER_VOLTAGE_COUNT;
   }
   uint32_t mt=micros();
+
   //Altitude
-  
   #if 1
   //Get Altitude (30Hz)
+  if (dcnt == 0) tof.startMeasurement();
   if (dcnt>interval)
   {
-    if(tof.dataIsReady())
+    if(is_finish_ranging())
     {
-      dist = get_distance();
+      dist = tof.readRangeResult();
+      if(dist>2000)dist = (uint16_t)Altitude;
       Altitude = (float)dist;
       dcnt=0u;
+      Alt_control_ok = 1;//距離データが得られたら制御をしても良いフラグを立てる
+      EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
+      Altitude2 = EstimatedAltitude.Altitude;
+      Alt_velocity = EstimatedAltitude.Velocity;
     }
-    EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
-    Altitude2 = EstimatedAltitude.Altitude;
-    Alt_velocity = EstimatedAltitude.Velocity;
+    else dcnt++;
   }
   else dcnt++;
   #endif
