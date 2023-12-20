@@ -47,8 +47,8 @@ float Acc_norm=0.0f;
 //quat_t Quat;
 float Over_g=0.0f, Over_rate=0.0f;
 uint8_t OverG_flag = 0;
-volatile uint8_t Under_voltage_flag = 0; 
-
+volatile uint8_t Under_voltage_flag = 0;
+volatile uint8_t ToF_bottom_data_ready_flag;
 volatile uint16_t Range=1000;
 
 void beep_init(void);
@@ -140,7 +140,7 @@ void IRAM_ATTR tof_int()
   ToF_bottom_data_ready_flag = 1;
 }
 
-void tof_range_get(VL53LX_DEV dev)
+uint16_t tof_range_get(VL53LX_DEV dev)
 {
   uint16_t range;
   VL53LX_MultiRangingData_t MultiRangingData;
@@ -261,7 +261,7 @@ void termin(void)
     if(ToF_bottom_data_ready_flag)
     {
       ToF_bottom_data_ready_flag = 0;
-      tof_range_get(ToF_bottom);
+      Range = tof_range_get(ToF_bottom);
 
       //Change Beep freqency
       beep_freq = ((int32_t)Range - 23)*5 + 100;

@@ -433,12 +433,8 @@ const float z_dot_eta = 0.125f;
 const float Thrust0_nominal = 0.63;
 volatile float Thrust0=0.0;
 uint8_t Alt_flag = 0;
-uint8_t Alt_control_ok=0;
-
 float Alt_ref = 0.0f;
 float Z_dot_ref = 0.0f;
-float Alt_velocity = 0.0f;
-float Altitude2;
 
 float altitude_control(uint8_t reset_flag)
 {
@@ -468,7 +464,7 @@ void get_command(void)
   //  Thrust_command = 0.0;
   //}
 
-  uint8_t Throttle_control_mode=1;
+  uint8_t Throttle_control_mode=0;
 
   //Thrust control
   float throttle_limit = 0.7;

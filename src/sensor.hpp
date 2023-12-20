@@ -66,6 +66,7 @@ extern quat_t Quat;
 extern float Over_g, Over_rate;
 extern uint8_t OverG_flag;
 extern volatile uint8_t Under_voltage_flag;
+extern volatile uint8_t ToF_bottom_data_ready_flag;
 
 void sensor_init(void);
 float sensor_read(void);
