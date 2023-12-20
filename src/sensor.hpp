@@ -59,6 +59,7 @@ extern volatile float Accel_z;
 extern volatile float Altitude;
 extern volatile float Altitude2;
 extern volatile float Alt_velocity;
+extern volatile uint8_t Alt_control_ok;
 extern volatile float Voltage;
 extern float Acc_norm;
 extern quat_t Quat;

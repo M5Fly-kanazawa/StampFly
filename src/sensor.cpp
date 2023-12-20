@@ -39,10 +39,8 @@ volatile float Mx,My,Mz,Mx0,My0,Mz0,Mx_ave,My_ave,Mz_ave;
 volatile float Altitude = 0.0f;
 volatile float Altitude2 = 0.0f;
 volatile float Alt_velocity = 0.0f;
+volatile uint8_t Alt_control_ok = 0;
 volatile uint16_t Offset_counter = 0;
-volatile uint8_t ToF_bottom_data_ready_flag = 0;
-volatile uint8_t ToF_front_data_ready_flag = 0;
-
 
 volatile float Voltage;
 float Acc_norm=0.0f;
