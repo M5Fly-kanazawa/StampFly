@@ -408,15 +408,155 @@ void control_init(void)
   //Angle control
   phi_pid.set_parameter  (Rall_angle_kp, Rall_angle_ti, Rall_angle_td, Rall_angle_eta, Control_period);//Roll angle control gain
   theta_pid.set_parameter(Pitch_angle_kp, Pitch_angle_ti, Pitch_angle_td, Pitch_angle_eta, Control_period);//Pitch angle control gain
-
-
-
 }
 ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////
 
+PID alt_pid;
+PID z_dot_pid;
+
+//Altitude control PID gain
+const float alt_kp = 0.5f;
+const float alt_ti = 100.0f;
+const float alt_td = 0.015f;
+const float alt_eta = 0.125f;
+const float alt_period = 0.035;
+//
+const float z_dot_kp = 0.5f;//12
+const float z_dot_ti = 1000.0f;
+const float z_dot_td = 0.01f;
+const float z_dot_eta = 0.125f;
+
+//Altitude Control variables
+const float Thrust0_nominal = 0.63;
+uint8_t Alt_flag = 0;
+uint8_t Alt_control_ok=0;
+
+float Alt_ref = 0.0f;
+float Z_dot_ref = 0.0f;
+float Alt_velocity = 0.0f;
+float Altitude2;
+
+float altitude_control(uint8_t reset_flag)
+{
+  static float u =0.0f;
+  if (reset_flag == 1)
+  {
+    u = 0.0;
+    alt_pid.reset();
+    z_dot_pid.reset();
+  }
+  else if(Alt_control_ok == 1)
+  {
+    Alt_control_ok = 0;
+    float alt_err = Alt_ref - Altitude2;
+    Z_dot_ref = alt_pid.update(alt_err);
+    float z_dot_err = Z_dot_ref - Alt_velocity;
+    u = z_dot_pid.update(z_dot_err);
+  }
+  return u;
+}
+
+void get_command(void)
+{
+  Control_mode = Stick[CONTROLMODE];
+
+  //if(OverG_flag == 1){
+  //  Thrust_command = 0.0;
+  //}
+
+  uint8_t Throttle_control_mode=1;
+
+  //Thrust control
+  float throttle_limit = 0.7;
+  float thlo = Stick[THROTTLE];
+  thlo = thlo/throttle_limit;
+
+  if (Throttle_control_mode == 0)
+  {
+    //Manual
+    if ( (0.2 > thlo) && (thlo > -0.2) )thlo = 0.0f ;
+    if (thlo>1.0f) thlo = 1.0f;
+    if (thlo<-1.0f) thlo =0.0f;
+    //Throttle curve conversion　スロットルカーブ補正
+    //Thrust_command = (2.95f*thlo-4.8f*thlo*thlo+2.69f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
+    Thrust_command = (2.97f*thlo-4.94f*thlo*thlo+2.86f*thlo*thlo*thlo)*BATTERY_VOLTAGE;
+  }
+  else if (Throttle_control_mode == 1)
+  {
+    //Altitude Control
+    if ( (0.2 > thlo) && (thlo > -0.2) )thlo = 0.0f ;
+    if (thlo>1.0f) thlo = 1.0f;
+    if (thlo<-1.0f) thlo =-1.0f;
+
+    Alt_ref = Alt_ref + (1.0/400.0) * thlo;
+    if(Alt_ref>0.5)Alt_ref=0.5;
+    if(Alt_ref<0.0)Alt_ref=0.0;
+    
+    //Altitude control
+    Thrust0 = Thrust0 + 1.0/(400.0*2);
+    if (Thrust0>Thrust0_nominal) Thrust0 = Thrust0_nominal;
+    Thrust_command = (Thrust0 + altitude_control(0))*BATTERY_VOLTAGE;
+
+    #if 0
+    if(Alt_flag==0)
+    {
+      Thrust0 = Thrust0 + 1.0/(400.0*2);
+      if (Thrust0>Thrust0_nominal) Thrust0 = Thrust0_nominal;
+      
+      if (Altitude2<0.15) Thrust_command = Thrust0 * BATTERY_VOLTAGE;
+      else Alt_flag = 1; 
+    }
+    else Thrust_command = (Thrust0 + altitude_control(0))*BATTERY_VOLTAGE;
+    #endif
+  }
+
+
+  //Thrust_command = thlo*BATTERY_VOLTAGE;
+
+  #ifdef MINIJOYC
+  Roll_angle_command = 0.6*Stick[AILERON];
+  if (Roll_angle_command<-1.0f)Roll_angle_command = -1.0f;
+  if (Roll_angle_command> 1.0f)Roll_angle_command =  1.0f;  
+  Pitch_angle_command = 0.6*Stick[ELEVATOR];
+  if (Pitch_angle_command<-1.0f)Pitch_angle_command = -1.0f;
+  if (Pitch_angle_command> 1.0f)Pitch_angle_command =  1.0f;  
+  #else
+  Roll_angle_command = 0.4*Stick[AILERON];
+  if (Roll_angle_command<-1.0f)Roll_angle_command = -1.0f;
+  if (Roll_angle_command> 1.0f)Roll_angle_command =  1.0f;  
+  Pitch_angle_command = 0.4*Stick[ELEVATOR];
+  if (Pitch_angle_command<-1.0f)Pitch_angle_command = -1.0f;
+  if (Pitch_angle_command> 1.0f)Pitch_angle_command =  1.0f;  
+  #endif
+  Yaw_angle_command = Stick[RUDDER];
+  if (Yaw_angle_command<-1.0f)Yaw_angle_command = -1.0f;
+  if (Yaw_angle_command> 1.0f)Yaw_angle_command =  1.0f;  
+  //Yaw control
+  Yaw_rate_reference   = 1.5f * PI * (Yaw_angle_command - Rudder_center);
+
+  if (Control_mode == RATECONTROL)
+  {
+    Roll_rate_reference = 240*PI/180*Roll_angle_command;
+    Pitch_rate_reference = 240*PI/180*Pitch_angle_command;
+  }
+
+  // flip button check
+  if (Flip_flag == 0)
+  {
+    Flip_flag = get_flip_button();
+  }
+
+  //USBSerial.printf("%5.2f %5.2f %5.2f %5.2f \n\r", 
+  //  Stick[THROTTLE], Stick[RUDDER], Stick[AILERON], Stick[ELEVATOR]);
+
+}
+
+
+
+#if 0
 void get_command(void)
 {
   Control_mode = Stick[CONTROLMODE];
@@ -472,6 +612,7 @@ void get_command(void)
   //  Stick[THROTTLE], Stick[RUDDER], Stick[AILERON], Stick[ELEVATOR]);
 
 }
+#endif
 
 void rate_control(void)
 {
