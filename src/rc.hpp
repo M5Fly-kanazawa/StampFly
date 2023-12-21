@@ -37,7 +37,7 @@
 #define ELEVATOR_MAX 127
 #define THROTTLE_MAX_JOYC 100
 
-#define BTID "4c:75:25:d5:b2:8e"
+//#define BTID "4c:75:25:d5:b2:8e"
 
 void rc_init(void);
 void rc_demo(void);
