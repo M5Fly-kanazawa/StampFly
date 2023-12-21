@@ -433,8 +433,12 @@ const float z_dot_eta = 0.125f;
 const float Thrust0_nominal = 0.63;
 volatile float Thrust0=0.0;
 uint8_t Alt_flag = 0;
-float Alt_ref = 0.0f;
 float Z_dot_ref = 0.0f;
+
+//高度目標
+volatile float Alt_ref = 0.5;
+
+
 
 float altitude_control(uint8_t reset_flag)
 {
