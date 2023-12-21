@@ -430,7 +430,7 @@ const float z_dot_td = 0.01f;
 const float z_dot_eta = 0.125f;
 
 //Altitude Control variables
-const float Thrust0_nominal = 0.6;
+const float Thrust0_nominal = 0.58;
 volatile float Thrust0=0.0;
 uint8_t Alt_flag = 0;
 float Z_dot_ref = 0.0f;
