@@ -642,6 +642,7 @@ void rate_control(void)
       p_pid.reset();
       q_pid.reset();
       r_pid.reset();
+      altitude_control(1);
       Roll_rate_reference = 0.0f;
       Pitch_rate_reference = 0.0f;
       Yaw_rate_reference = 0.0f;
