@@ -131,9 +131,35 @@ PID r_pid;
 PID phi_pid;
 PID theta_pid;
 PID psi_pid;
-PID alt;
+//PID alt;
+PID alt_pid;
+PID z_dot_pid;
+
 CRGB led_esp[NUM_LEDS];
 CRGB led_onboard[2];
+
+//Altitude control PID gain
+const float alt_kp = 0.5f;
+const float alt_ti = 100.0f;
+const float alt_td = 0.015f;
+const float alt_eta = 0.125f;
+const float alt_period = 0.035;
+//
+const float z_dot_kp = 0.5f;//0.5f;//12
+const float z_dot_ti = 1000.0f;
+const float z_dot_td = 0.01f;
+const float z_dot_eta = 0.125f;
+
+//Altitude Control variables
+const float Thrust0_nominal = 0.58;
+volatile float Thrust0=0.0;
+uint8_t Alt_flag = 0;
+float Z_dot_ref = 0.0f;
+
+//高度目標
+volatile float Alt_ref = 0.3;
+
+
 
 //Function declaration
 void init_pwm();
@@ -408,37 +434,15 @@ void control_init(void)
   //Angle control
   phi_pid.set_parameter  (Rall_angle_kp, Rall_angle_ti, Rall_angle_td, Rall_angle_eta, Control_period);//Roll angle control gain
   theta_pid.set_parameter(Pitch_angle_kp, Pitch_angle_ti, Pitch_angle_td, Pitch_angle_eta, Control_period);//Pitch angle control gain
+
+  //Altitude control
+  alt_pid.set_parameter(alt_kp, alt_ti, alt_td, alt_eta, alt_period);
+  z_dot_pid.set_parameter(z_dot_kp, z_dot_ti, z_dot_td, alt_eta, alt_period);
 }
 ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////
-
-PID alt_pid;
-PID z_dot_pid;
-
-//Altitude control PID gain
-const float alt_kp = 0.5f;
-const float alt_ti = 100.0f;
-const float alt_td = 0.015f;
-const float alt_eta = 0.125f;
-const float alt_period = 0.035;
-//
-const float z_dot_kp = 12.0f;//0.5f;//12
-const float z_dot_ti = 1000.0f;
-const float z_dot_td = 0.01f;
-const float z_dot_eta = 0.125f;
-
-//Altitude Control variables
-const float Thrust0_nominal = 0.58;
-volatile float Thrust0=0.0;
-uint8_t Alt_flag = 0;
-float Z_dot_ref = 0.0f;
-
-//高度目標
-volatile float Alt_ref = 0.3;
-
-
 
 float altitude_control(uint8_t reset_flag)
 {
