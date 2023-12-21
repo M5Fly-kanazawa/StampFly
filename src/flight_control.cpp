@@ -157,7 +157,7 @@ uint8_t Alt_flag = 0;
 float Z_dot_ref = 0.0f;
 
 //高度目標
-volatile float Alt_ref = 0.3;
+volatile float Alt_ref = 0.25;
 
 
 
@@ -312,6 +312,10 @@ void loop_400Hz(void)
     motor_stop();
     OverG_flag = 0;
     Angle_control_flag = 0;
+    Thrust0 = 0.0;
+    Alt_flag = 0;
+    Alt_ref = 0.25f
+
   }
 
   //Telemetry
