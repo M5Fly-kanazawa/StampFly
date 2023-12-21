@@ -11,7 +11,8 @@ volatile uint16_t Connect_flag = 0;
 //ATOM Lite (C): 4C:75:25:AE:27:FC
 //4C:75:25:AD:8B:20
 //4C:75:25:AF:4E:84
-const uint8_t addr[6] = {0x4C, 0x75, 0x25, 0xAF, 0x4E, 0x84};
+
+const uint8_t addr[6] = {0x4C, 0x75, 0x25, 0xAE, 0x27, 0xFC};
 
 esp_now_peer_info_t peerInfo;
 
