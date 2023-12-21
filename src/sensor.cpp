@@ -445,8 +445,17 @@ void sensor_init()
   ina3221.reset();  
   voltage_filter.set_parameter(0.005, 0.0025);
   
-  //test_ranging();
-
+  uint16_t cnt=0;
+  while(cnt<10)
+  {
+    if(ToF_bottom_data_ready_flag)
+    {
+      ToF_bottom_data_ready_flag = 0;
+      cnt++;
+      USBSerial.printf("%d %d\n\r", cnt, tof_range_get(ToF_bottom));
+    }
+  }
+  
   //pipo();
 
   delay(500);
