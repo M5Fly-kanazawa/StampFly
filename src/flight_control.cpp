@@ -418,7 +418,7 @@ PID alt_pid;
 PID z_dot_pid;
 
 //Altitude control PID gain
-const float alt_kp = 0.5f;
+const float alt_kp = 5.0f;
 const float alt_ti = 100.0f;
 const float alt_td = 0.015f;
 const float alt_eta = 0.125f;
@@ -499,7 +499,17 @@ void get_command(void)
     //Altitude control
     Thrust0 = Thrust0 + 1.0/(400.0*2);
     if (Thrust0>Thrust0_nominal) Thrust0 = Thrust0_nominal;
-    Thrust_command = (Thrust0 + altitude_control(0))*BATTERY_VOLTAGE;
+    if (Alt_flag==0)
+    {
+      if (Altitude2>Alt_ref)Alt_flag = 1;
+      Thrust_command = Thrust0*BATTERY_VOLTAGE;
+      altitude_control(1);
+    }
+    else{
+      Thrust_command = (Thrust0 + altitude_control(0))*BATTERY_VOLTAGE;
+    }
+    
+    
 
     #if 0
     if(Alt_flag==0)
