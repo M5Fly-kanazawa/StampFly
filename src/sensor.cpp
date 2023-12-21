@@ -551,6 +551,7 @@ float sensor_read(void)
       ToF_bottom_data_ready_flag = 0;
       dist=tof_range_get(ToF_bottom);
       Altitude = (float)dist;
+      Alt_control_ok = 1;
       dcnt=0u;
     }
     EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
