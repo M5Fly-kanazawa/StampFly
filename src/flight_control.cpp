@@ -488,7 +488,7 @@ void get_command(void)
   //  Thrust_command = 0.0;
   //}
 
-  uint8_t Throttle_control_mode=1;
+  uint8_t Throttle_control_mode=0;
   
 
   //Thrust control
