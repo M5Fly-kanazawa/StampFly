@@ -415,8 +415,10 @@ void control_init(void)
   phi_pid.set_parameter  (Rall_angle_kp, Rall_angle_ti, Rall_angle_td, Rall_angle_eta, Control_period);//Roll angle control gain
   theta_pid.set_parameter(Pitch_angle_kp, Pitch_angle_ti, Pitch_angle_td, Pitch_angle_eta, Control_period);//Pitch angle control gain
 
-
-
+  Duty_fl.set_parameter(0.003, Control_period);
+  Duty_fr.set_parameter(0.003, Control_period);
+  Duty_rl.set_parameter(0.003, Control_period);
+  Duty_rr.set_parameter(0.003, Control_period);
 }
 ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////
