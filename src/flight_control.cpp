@@ -132,6 +132,11 @@ PID phi_pid;
 PID theta_pid;
 PID psi_pid;
 PID alt;
+Filter Duty_fr;
+Filter Duty_fl;
+Filter Duty_rr;
+Filter Duty_rl;
+
 CRGB led_esp[NUM_LEDS];
 CRGB led_onboard[2];
 
