@@ -139,15 +139,15 @@ CRGB led_esp[NUM_LEDS];
 CRGB led_onboard[2];
 
 //Altitude control PID gain
-const float alt_kp = 0.5f;
-const float alt_ti = 100.0f;
-const float alt_td = 0.015f;
+const float alt_kp = 0.1f;
+const float alt_ti = 1000.0f;
+const float alt_td = 0.00f;
 const float alt_eta = 0.125f;
-const float alt_period = 0.035;
+const float alt_period = 0.0333;
 //
 const float z_dot_kp = 0.5f;//0.5f;//12
 const float z_dot_ti = 1000.0f;
-const float z_dot_td = 0.01f;
+const float z_dot_td = 0.00f;
 const float z_dot_eta = 0.125f;
 
 //Altitude Control variables
@@ -314,7 +314,7 @@ void loop_400Hz(void)
     Angle_control_flag = 0;
     Thrust0 = 0.0;
     Alt_flag = 0;
-    Alt_ref = 0.25f
+    Alt_ref = 0.25f;
 
   }
 
@@ -504,12 +504,13 @@ void get_command(void)
     if(Alt_ref>0.5)Alt_ref=0.5;
     if(Alt_ref<0.0)Alt_ref=0.0;
     
+    #if 1
     //Altitude control
     Thrust0 = Thrust0 + 1.0/(400.0*2);
     if (Thrust0>Thrust0_nominal) Thrust0 = Thrust0_nominal;
-
     Thrust_command = (Thrust0 + altitude_control(0))*BATTERY_VOLTAGE;
-  
+    #endif
+
     #if 0
     if(Alt_flag==0)
     {
@@ -1212,9 +1213,12 @@ void make_telemetry_data(uint8_t* senddata)
   //19 Alt Velocity
   data2log(senddata, Alt_velocity, index);
   index = index + 4;
-  //20 FrontRight_motor_duty
-  data2log(senddata, FrontRight_motor_duty, index);
+  //20 Z_dot_ref
+  data2log(senddata, Z_dot_ref, index);
   index = index + 4;
+  //20 FrontRight_motor_duty
+  //data2log(senddata, FrontRight_motor_duty, index);
+  //index = index + 4;
   //21 FrontLeft_motor_duty
   data2log(senddata, FrontLeft_motor_duty, index);
   index = index + 4;
