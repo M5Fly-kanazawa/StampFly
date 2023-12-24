@@ -115,6 +115,7 @@ uint8_t BtnA_off_flag =1;
 volatile uint8_t Loop_flag = 0;
 volatile uint8_t Angle_control_flag = 0;
 uint32_t Led_color = 0x000000;
+uint32_t Led_color2 = 255;
 
 //flip
 float FliRoll_rate_time = 2.0;
@@ -149,14 +150,15 @@ const float alt_ti = 100.0f;
 const float alt_td = 0.0001f;
 const float alt_eta = 0.125f;
 const float alt_period = 0.0333;
-//
-const float z_dot_kp = 0.12f;//0.5f;//12
-const float z_dot_ti = 1000.0f;
-const float z_dot_td = 0.001f;
-const float z_dot_eta = 0.125f;
 
 //Altitude Control variables
-const float Thrust0_nominal = 0.58;
+const float Thrust0_nominal = 0.555;
+const float z_dot_kp = 0.14f;//0.5f;//12
+const float z_dot_ti = 40.0f;
+const float z_dot_td = 0.0093f;
+const float z_dot_eta = 0.125f;
+
+
 volatile float Thrust0=0.0;
 uint8_t Alt_flag = 0;
 float Z_dot_ref = 0.0f;
@@ -384,18 +386,24 @@ void led_drive(void)
   }
   else if (Mode == PARKING_MODE)
   {
-    if(LedBlinkCounter<10){
-      if (Under_voltage_flag < UNDER_VOLTAGE_COUNT) onboard_led(GREEN, 1);
+    if(LedBlinkCounter==0){//<10
+      if (Led_color2&0x800000)Led_color2 = (Led_color2<<1)|1;
+      else Led_color2=Led_color2<<1; 
+      if (Under_voltage_flag < UNDER_VOLTAGE_COUNT) onboard_led(Led_color2, 1);//GREEN
       else onboard_led(POWEROFFCOLOR,1);
       LedBlinkCounter++;
     }
-    else if(LedBlinkCounter<100)
+    LedBlinkCounter++;
+    if (LedBlinkCounter>20)LedBlinkCounter=0;
+    #if 0
+    else if(LedBlinkCounter<200)//100
     {
       if (Under_voltage_flag <UNDER_VOLTAGE_COUNT) onboard_led(GREEN, 0);
       else onboard_led(POWEROFFCOLOR,0);
       LedBlinkCounter++;
     }
     else LedBlinkCounter=0;
+    #endif
   }
 
   //Watch dog LED

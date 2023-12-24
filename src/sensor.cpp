@@ -553,10 +553,11 @@ float sensor_read(void)
       Altitude = (float)dist;
       Alt_control_ok = 1;
       dcnt=0u;
+
+      EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
+      Altitude2 = EstimatedAltitude.Altitude;
+      Alt_velocity = EstimatedAltitude.Velocity;
     }
-    EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
-    Altitude2 = EstimatedAltitude.Altitude;
-    Alt_velocity = EstimatedAltitude.Velocity;
   }
   else dcnt++;
   #endif

@@ -1,0 +1,78 @@
+//発散　下がって、上がって、天井激突
+const float z_dot_kp = 0.13f;
+const float z_dot_ti = 0.9f;
+const float z_dot_td = 0.005f;
+const float z_dot_eta = 0.125f;
+
+//下がって、上がって、上昇繰り返す。
+const float z_dot_kp = 0.13f;//0.5f;//12
+const float z_dot_ti = 10.0f;
+const float z_dot_td = 0.005f;
+const float z_dot_eta = 0.125f;
+
+//下がって、上がって、最後は天井激突
+const float z_dot_kp = 0.13f;//0.5f;//12
+const float z_dot_ti = 10.0f;
+const float z_dot_td = 0.000f;
+const float z_dot_eta = 0.125f;
+
+//すぐに天井
+const float z_dot_kp = 0.13f;//0.5f;//12
+const float z_dot_ti = 5.0f;
+const float z_dot_td = 0.000f;
+const float z_dot_eta = 0.125f;
+
+//上昇速度遅くなった
+const float z_dot_kp = 0.13f;//0.5f;//12
+const float z_dot_ti = 100.0f;
+const float z_dot_td = 0.005f;
+const float z_dot_eta = 0.125f;
+
+//時々上昇を繰り返すが、止まる時間も少しある
+const float Thrust0_nominal = 0.57;
+const float z_dot_kp = 0.13f;//0.5f;//12
+const float z_dot_ti = 50.0f;
+const float z_dot_td = 0.007f;
+const float z_dot_eta = 0.125f;
+
+//時々上昇を繰り返すが、止まる時間も少しある、修正しようとしている。リセットかかるかも
+const float Thrust0_nominal = 0.56;
+const float z_dot_kp = 0.14f;//0.5f;//12
+const float z_dot_ti = 40.0f;
+const float z_dot_td = 0.008f;
+const float z_dot_eta = 0.125f;
+
+//のみなる小さいかも、高度上がらない
+const float Thrust0_nominal = 0.55;
+const float z_dot_kp = 0.14f;//0.5f;//12
+const float z_dot_ti = 40.0f;
+const float z_dot_td = 0.008f;
+const float z_dot_eta = 0.125f;
+
+//しばらく高度維が突如として上昇して激突
+const float Thrust0_nominal = 0.555;
+const float z_dot_kp = 0.14f;//0.5f;//12
+const float z_dot_ti = 40.0f;
+const float z_dot_td = 0.008f;
+const float z_dot_eta = 0.125f;
+
+//しばらく持ったが、リセット
+const float Thrust0_nominal = 0.555;
+const float z_dot_kp = 0.14f;//0.5f;//12
+const float z_dot_ti = 40.0f;
+const float z_dot_td = 0.0095f;
+const float z_dot_eta = 0.125f;
+
+//しばらくして天井
+const float Thrust0_nominal = 0.555;
+const float z_dot_kp = 0.14f;//0.5f;//12
+const float z_dot_ti = 40.0f;
+const float z_dot_td = 0.00925f;
+const float z_dot_eta = 0.125f;
+
+//alt26.log
+const float Thrust0_nominal = 0.555;
+const float z_dot_kp = 0.14f;//0.5f;//12
+const float z_dot_ti = 40.0f;
+const float z_dot_td = 0.0093f;
+const float z_dot_eta = 0.125f;
