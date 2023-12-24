@@ -150,9 +150,9 @@ const float alt_td = 0.0001f;
 const float alt_eta = 0.125f;
 const float alt_period = 0.0333;
 //
-const float z_dot_kp = 0.5f;//0.5f;//12
-const float z_dot_ti = 0.8f;
-const float z_dot_td = 0.1f;
+const float z_dot_kp = 0.12f;//0.5f;//12
+const float z_dot_ti = 1000.0f;
+const float z_dot_td = 0.001f;
 const float z_dot_eta = 0.125f;
 
 //Altitude Control variables
@@ -164,8 +164,6 @@ float Alt_max = 1.5;
 
 //高度目標
 volatile float Alt_ref = 0.25;
-
-
 
 //Function declaration
 void init_pwm();
@@ -488,7 +486,7 @@ void get_command(void)
   //  Thrust_command = 0.0;
   //}
 
-  uint8_t Throttle_control_mode=0;
+  uint8_t Throttle_control_mode=1;
   
 
   //Thrust control
@@ -1289,4 +1287,3 @@ void motor_stop(void)
   set_duty_rr(0.0);
   set_duty_rl(0.0);
 }
-
