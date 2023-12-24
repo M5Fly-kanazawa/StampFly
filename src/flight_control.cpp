@@ -115,6 +115,8 @@ uint8_t BtnA_off_flag =1;
 volatile uint8_t Loop_flag = 0;
 volatile uint8_t Angle_control_flag = 0;
 uint32_t Led_color = 0x000000;
+uint32_t Led_color2 = 255;
+
 
 //flip
 float FliRoll_rate_time = 2.0;
@@ -356,18 +358,24 @@ void led_drive(void)
   }
   else if (Mode == PARKING_MODE)
   {
-    if(LedBlinkCounter<10){
-      if (Under_voltage_flag < UNDER_VOLTAGE_COUNT) onboard_led(GREEN, 1);
+    if(LedBlinkCounter==0){//<10
+      if (Led_color2&0x000001)Led_color2 = (Led_color2>>1)|0x800000;
+      else Led_color2=Led_color2>>1; 
+      if (Under_voltage_flag < UNDER_VOLTAGE_COUNT) onboard_led(Led_color2, 1);//GREEN
       else onboard_led(POWEROFFCOLOR,1);
       LedBlinkCounter++;
     }
-    else if(LedBlinkCounter<100)
+    LedBlinkCounter++;
+    if (LedBlinkCounter>20)LedBlinkCounter=0;
+    #if 0
+    else if(LedBlinkCounter<200)//100
     {
       if (Under_voltage_flag <UNDER_VOLTAGE_COUNT) onboard_led(GREEN, 0);
       else onboard_led(POWEROFFCOLOR,0);
       LedBlinkCounter++;
     }
     else LedBlinkCounter=0;
+    #endif
   }
 
   //Watch dog LED
