@@ -28,14 +28,14 @@ class Alt_kalman
     float p11_, p12_, p21_, p22_;
 
     //Q
-    float q1=(0.04)*(0.04), q2=(1.0e-3)*(1.0e-3);//q1=0.04*0.04
+    float q1=(0.04)*(0.04), q2=(0.001)*(0.001);//q1=0.04*0.04 q2=0.001*0.001
 
     //R
     float R = 0.05*0.05;
 
     public:
     //setep
-    float step=0.035;
+    float step=1.0/30.0;
     //state
     float Velocity=0.0, Altitude=0.0;
     Alt_kalman();
