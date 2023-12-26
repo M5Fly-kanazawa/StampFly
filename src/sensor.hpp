@@ -6,10 +6,10 @@
 #include "pid.hpp"
 #include <INA3221.h>
 #include <MadgwickAHRS.h>
-#include <bmi270.h>
+//#include <bmi270.h>
 #include <common.h>
-#include <vl53lx_api.h>
-#include <vl53lx_platform.h>
+//#include <vl53lx_api.h>
+//#include <vl53lx_platform.h>
 #include <stdint.h>
 #include "alt_kalman.hpp"
 #include <driver/spi_master.h>
@@ -73,8 +73,8 @@ float sensor_read(void);
 void sensor_reset_offset(void);
 void sensor_calc_offset_avarage(void);
 void ahrs_reset(void);
-void tof_init(void);
-void test_ranging(VL53LX_DEV dev);
+//void tof_init(void);
+//void test_ranging(VL53LX_DEV dev);
 uint8_t  scan_i2c(void);
 
 #endif

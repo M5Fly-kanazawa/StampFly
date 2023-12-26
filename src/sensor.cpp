@@ -1,6 +1,6 @@
 #include "sensor.hpp"
-#include "common.h"
-#include "bmi2.h"
+#include "imu.hpp"
+#include "tof.hpp" 
 
 /************ BEEP ************/
 //BeepPWM出力Pinのアサイン
@@ -48,7 +48,7 @@ float Acc_norm=0.0f;
 float Over_g=0.0f, Over_rate=0.0f;
 uint8_t OverG_flag = 0;
 volatile uint8_t Under_voltage_flag = 0;
-volatile uint8_t ToF_bottom_data_ready_flag;
+//volatile uint8_t ToF_bottom_data_ready_flag;
 volatile uint16_t Range=1000;
 
 void beep_init(void);
@@ -62,9 +62,6 @@ void beep_init(void)
   ledcWrite(beep_channel, (uint32_t)(0));
   #endif
 }
-
-
-
 
 uint8_t scan_i2c()
 {
@@ -90,7 +87,6 @@ uint8_t scan_i2c()
   return count;
 }
 
-
 void sensor_reset_offset(void)
 {
   Roll_rate_offset = 0.0f;
@@ -109,17 +105,6 @@ void sensor_calc_offset_avarage(void)
 
   Offset_counter++;
 }
-#define INT_BOTTOM 6
-#define XSHUT_BOTTOM 7
-#define INT_FRONT 8
-#define XSHUT_FRONT 9
-#define USER_A 0
-
-VL53LX_Dev_t tof_front;
-VL53LX_Dev_t tof_bottom;
-
-VL53LX_DEV ToF_front=&tof_front;
-VL53LX_DEV ToF_bottom=&tof_bottom;
 
 
 void pipo(void)
@@ -135,125 +120,6 @@ void pipo(void)
   ledcWrite(beep_channel, 0);
 }
 
-void IRAM_ATTR tof_int()
-{
-  ToF_bottom_data_ready_flag = 1;
-}
-
-uint16_t tof_range_get(VL53LX_DEV dev)
-{
-  uint16_t range;
-  VL53LX_MultiRangingData_t MultiRangingData;
-  VL53LX_MultiRangingData_t *pMultiRangingData=&MultiRangingData;
-
-  VL53LX_GetMultiRangingData(dev, pMultiRangingData);
-  uint8_t no_of_object_found=pMultiRangingData->NumberOfObjectsFound;
-  if(no_of_object_found!=0)
-  {
-    range = MultiRangingData.RangeData[0].RangeMilliMeter;
-    #if 0
-    for(uint8_t j=0;j<no_of_object_found;j++){
-          if(j!=0)USBSerial.printf("\n\r                     ");
-          USBSerial.printf("%d %5d %2.2f %2.2f ",
-                  MultiRangingData.RangeData[j].RangeStatus,
-                  MultiRangingData.RangeData[j].RangeMilliMeter,
-                  MultiRangingData.RangeData[j].SignalRateRtnMegaCps/65536.0,
-                  MultiRangingData.RangeData[j].AmbientRateRtnMegaCps/65536.0);
-    }
-    #endif
-        
-  }
-  VL53LX_ClearInterruptAndStartMeasurement(dev);
-  return range;
-}
-
-float acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z;
-
-void imu_init(void)
-{
-  USBSerial.printf("Start IMU Initialize!\n\r");
-  pinMode(46, OUTPUT);//CSを設定
-  digitalWrite(46, 0);//CSをHIGH
-  bmi270_dev_init();
-  USBSerial.printf("SPI Initilize status:%d\n\r",spi_init());
-  usleep(1000*10);
-  uint8_t data=0;
-
-  //BMI270 Init
-  USBSerial.printf("#INIT Status:%d\n\r", bmi270_init(pBmi270));
-  USBSerial.printf("#Chip ID DEV:%02X\n\r", Bmi270.chip_id);
-  USBSerial.printf("#APP_STATUS:%02X\n\r", Bmi270.aps_status);
-  
-  USBSerial.printf("#INIT_STATUS Read:%d\n\r",bmi2_get_regs(0x21, &data, 1, pBmi270));  
-  USBSerial.printf("#INIT_STATUS:%02X\n\r", data);
-  //IMU Config
-  USBSerial.printf("#Config Status:%d\n\r", set_accel_gyro_config(pBmi270));
-  uint8_t sensor_list[2] = { BMI2_ACCEL, BMI2_GYRO };
-  USBSerial.printf("#Sensor enable Status:%d\n\r", bmi2_sensor_enable(sensor_list, 2, pBmi270));
-
-  #if 0
-  //BMI270使用の試行錯誤の跡
-  uint8_t w_data[2]={3,5};
-  USBSerial.printf("#Read status:%d\n\r",bmi2_get_regs(0x00, &data, 1, pBmi270));  
-  USBSerial.printf("#Chicp ID:%02X\n\r", data);
-
-  USBSerial.printf("#Read status:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
-  USBSerial.printf("#ADR 0x7C:%02X=0x03\n\r", data);
-  USBSerial.printf("#Read status:%d\n\r",bmi2_get_regs(0x7D, &data, 1, pBmi270));  
-  USBSerial.printf("#ADR 0x7D:%02X=0x00\n\r", data);
-
-  USBSerial.printf("#Write status:%d\n\r",bmi2_set_regs(0x7C, w_data, 2, pBmi270));  
-  
-  USBSerial.printf("#Read status:%d\n\r",bmi2_get_regs(0x7C, &data, 1, pBmi270));  
-  USBSerial.printf("#ADR 0x7C:%02X=0x03\n\r", data);
-  USBSerial.printf("#Read status:%d\n\r",bmi2_get_regs(0x7D, &data, 1, pBmi270));  
-  USBSerial.printf("#ADR 0x7D:%02X=0x00\n\r", data);
-  #endif
-}
-
-#define DPS20002RAD 34.90658504
-#define DPS10002RAD 17.4532925199
-
-void test_imu(void)
-{
-  u_long st, now, old, end;
-  uint16_t count;
-  uint8_t ret;
-  st=micros();
-  now = st;
-  old = st;
-  struct bmi2_sens_data imu_data;
-  usleep(1000*5000);
-
-
-  while(1)
-  {
-    old = now;
-    now = micros();
-    ret = bmi2_get_sensor_data(&imu_data, pBmi270);
-    //USBSerial.printf("%d\n\r", ret);
-    acc_x = lsb_to_mps2(imu_data.acc.x, 8.0, 16);
-    acc_y = lsb_to_mps2(imu_data.acc.y, 8.0, 16);
-    acc_z = lsb_to_mps2(imu_data.acc.z, 8.0, 16);
-    gyro_x = lsb_to_rps(imu_data.gyr.x, DPS10002RAD, 16);
-    gyro_y = lsb_to_rps(imu_data.gyr.y, DPS10002RAD, 16);
-    gyro_z = lsb_to_rps(imu_data.gyr.z, DPS10002RAD, 16);
-    #if 1
-    USBSerial.printf("%8.4f %7.5f %8.4f %8.4f %8.4f %8.4f %8.4f %8.4f %d\n\r", 
-      (float)(now-st)*1.0e-6,
-      (float)(now - old)*1.0e-6,
-      acc_x,
-      acc_y,
-      acc_z,
-      gyro_x,
-      gyro_y,
-      gyro_z,
-      ret);
-  #endif
-  }
-  
-}
-
 void termin(void)
 {
   while(1)
@@ -261,7 +127,7 @@ void termin(void)
     if(ToF_bottom_data_ready_flag)
     {
       ToF_bottom_data_ready_flag = 0;
-      Range = tof_range_get(ToF_bottom);
+      Range = tof_bottom_get_range();
 
       //Change Beep freqency
       beep_freq = ((int32_t)Range - 23)*5 + 100;
@@ -283,134 +149,6 @@ void termin(void)
       USBSerial.printf("%d %d\r\n", Range, beep_freq);
     }
   }
-}
-
-
-void tof_init(void)
-{
-  uint8_t byteData;
-  uint16_t wordData;
-
-  ToF_bottom->comms_speed_khz = 400;
-  ToF_bottom->i2c_slave_address = 0x29;
-
-  ToF_front->comms_speed_khz = 400;
-  ToF_front->i2c_slave_address = 0x29;
-
-
-  //USBSerial.printf("#tof_i2c_init_status:%d\r\n",vl53lx_i2c_init());  
-
-  //ToF Pin Initialize
-  pinMode(XSHUT_BOTTOM, OUTPUT);
-  pinMode(XSHUT_FRONT, OUTPUT);
-  pinMode(INT_BOTTOM, INPUT);
-  pinMode(INT_FRONT, INPUT);
-  pinMode(USER_A, INPUT_PULLUP);
-  
-  //ToF Disable
-  digitalWrite(XSHUT_BOTTOM, LOW);
-  digitalWrite(XSHUT_FRONT, LOW);
-
-  //Front ToF I2C address to 0x54  
-  digitalWrite(XSHUT_FRONT, HIGH);
-  delay(100);
-  VL53LX_SetDeviceAddress(ToF_front, 0x54);
-  ToF_front->i2c_slave_address = 0x2A;
-
-  delay(100);
-  digitalWrite(XSHUT_BOTTOM, HIGH);
-
-  //Bttom ToF setting
-  USBSerial.printf("#1 WaitDeviceBooted Status:%d\n\r",VL53LX_WaitDeviceBooted(ToF_bottom));
-  USBSerial.printf("#1 DataInit Status:%d\n\r",VL53LX_DataInit(ToF_bottom));
-  USBSerial.printf("#1 Range setting  Status:%d\n\r", VL53LX_SetDistanceMode(ToF_bottom, VL53LX_DISTANCEMODE_LONG));
-  USBSerial.printf("#1 SetMeasurementTimingBuget Status:%d\n\r",VL53LX_SetMeasurementTimingBudgetMicroSeconds(ToF_bottom, 20000));
-  USBSerial.printf("#1 RdByte Status:%d\n\r", VL53LX_RdByte(ToF_bottom, 0x010F, &byteData));
-  USBSerial.printf("#1 VL53LX Model_ID: %02X\n\r", byteData);  
-  USBSerial.printf("#1 RdByte Status:%d\n\r", VL53LX_RdByte(ToF_bottom, 0x0110, &byteData));
-  USBSerial.printf("#1 VL53LX Module_Type: %02X\n\r", byteData);
-  USBSerial.printf("#1 RdWord Status:%d\n\r", VL53LX_RdWord(ToF_bottom, 0x010F, &wordData));
-  USBSerial.printf("#1 VL53LX: %04X\n\r", wordData);
-  
-  //Front ToF Setting
-  USBSerial.printf("#2 WaitDeviceBooted Status:%d\n\r",VL53LX_WaitDeviceBooted(ToF_front));
-  USBSerial.printf("#2 DataInit Status:%d\n\r",VL53LX_DataInit(ToF_front));
-  USBSerial.printf("#1 Range setting  Status:%d\n\r", VL53LX_SetDistanceMode(ToF_front, VL53LX_DISTANCEMODE_LONG));
-  USBSerial.printf("#2 SetMeasurementTimingBuget Status:%d\n\r",VL53LX_SetMeasurementTimingBudgetMicroSeconds(ToF_front, 20000));
-  USBSerial.printf("#2 RdByte Status:%d\n\r", VL53LX_RdByte(ToF_front, 0x010F, &byteData));
-  USBSerial.printf("#2 VL53LX Model_ID: %02X\n\r", byteData);  
-  USBSerial.printf("#2 RdByte Status:%d\n\r", VL53LX_RdByte(ToF_front, 0x0110, &byteData));
-  USBSerial.printf("#2 VL53LX Module_Type: %02X\n\r", byteData);
-  USBSerial.printf("#2 RdWord Status:%d\n\r", VL53LX_RdWord(ToF_front, 0x010F, &wordData));
-  USBSerial.printf("#2 VL53LX: %04X\n\r", wordData);
-
-  attachInterrupt(INT_BOTTOM, &tof_int, FALLING);
-
-  VL53LX_ClearInterruptAndStartMeasurement(ToF_bottom);
-  delay(100);
-  USBSerial.printf("#Start Measurement Status:%d\n\r", VL53LX_StartMeasurement(ToF_bottom));
-
-}
-
-void test_ranging(VL53LX_DEV dev)
-{
-  uint8_t status=0;
-  uint8_t data_ready=0;
-  int16_t range;
-  VL53LX_MultiRangingData_t MultiRangingData;
-  VL53LX_MultiRangingData_t *pMultiRangingData=&MultiRangingData;
-
-  if (status==0){
-    status = VL53LX_ClearInterruptAndStartMeasurement(dev);
-  }
-  delay(100);
-  USBSerial.printf("#Start Measurement Status:%d\n\r", VL53LX_StartMeasurement(dev));
-
-  USBSerial.printf("#Count ObjNo Status Range Signal(Mcps) Ambient(Mcps)\n\r");
-
-  u_long st, now, old, end;
-  uint16_t count;
-  st=micros();
-  now = st;
-  old = st;
-
-  count = 0;
-  USBSerial.printf("Start!\n\r");
-  while(count<500)
-  {
-    //VL53LX_WaitMeasurementDataReady(dev);
-    //if(digitalRead(INT_BOTTOM)==0)
-
-    VL53LX_GetMeasurementDataReady(dev, &data_ready);
-    if( data_ready==1 )
-    {
-      data_ready = 0;
-      count++;      
-      VL53LX_GetMultiRangingData(dev, pMultiRangingData);
-      old = now;
-      now=micros();
-      uint8_t no_of_object_found=pMultiRangingData->NumberOfObjectsFound;
-      USBSerial.printf("%7.4f %7.4f ", (float)(now-st)*1e-6, (float)(now - old)*1e-6);
-      USBSerial.printf("%5d ", pMultiRangingData->StreamCount);
-      USBSerial.printf("%1d ", no_of_object_found);
-      for(uint8_t j=0;j<no_of_object_found;j++){
-        if(j!=0)USBSerial.printf("\n\r                     ");
-        USBSerial.printf("%d %5d %2.2f %2.2f ",
-                MultiRangingData.RangeData[j].RangeStatus,
-                MultiRangingData.RangeData[j].RangeMilliMeter,
-                MultiRangingData.RangeData[j].SignalRateRtnMegaCps/65536.0,
-                MultiRangingData.RangeData[j].AmbientRateRtnMegaCps/65536.0);        
-      }
-      
-      VL53LX_ClearInterruptAndStartMeasurement(dev);
-      end=micros();
-      USBSerial.printf ("%8.6f", (float)(end-now)*1.0e-6);
-      USBSerial.printf ("\n\r");
-
-    }
-  }
-  USBSerial.printf("End!\n\r");
-
 }
 
 void test_voltage(void)
@@ -452,17 +190,15 @@ void sensor_init()
     {
       ToF_bottom_data_ready_flag = 0;
       cnt++;
-      USBSerial.printf("%d %d\n\r", cnt, tof_range_get(ToF_bottom));
+      USBSerial.printf("%d %d\n\r", cnt, tof_bottom_get_range());
     }
   }
   
   //pipo();
-
   delay(500);
   //test_imu();
   //termin();
   //test_voltage();  
-
 
   //Acceleration filter
   //acc_filter.set_parameter(0.005, 0.0025);
@@ -471,7 +207,7 @@ void sensor_init()
 
 float sensor_read(void)
 {
-  struct bmi2_sens_data imu_data;
+  //struct bmi2_sens_data imu_data;
   float acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z;
   float ax, ay, az, gx, gy, gz, acc_norm, rate_norm;
   float filterd_v;
@@ -491,14 +227,16 @@ float sensor_read(void)
   //Y軸：前後（前が正）左肩上がりが回転の正
   //Z軸：上下（上が正）左回りが回転の正
 
-  bmi2_get_sensor_data(&imu_data, pBmi270);
+  imu_update();
 
-  acc_x = lsb_to_mps2(imu_data.acc.x, 8.0, 16)/GRAVITY_EARTH;
-  acc_y = lsb_to_mps2(imu_data.acc.y, 8.0, 16)/GRAVITY_EARTH;
-  acc_z = lsb_to_mps2(imu_data.acc.z, 8.0, 16)/GRAVITY_EARTH;
-  gyro_x = lsb_to_rps(imu_data.gyr.x, DPS20002RAD, 16);
-  gyro_y = lsb_to_rps(imu_data.gyr.y, DPS20002RAD, 16);
-  gyro_z = lsb_to_rps(imu_data.gyr.z, DPS20002RAD, 16);
+  //bmi2_get_sensor_data(&imu_data, pBmi270);
+
+  acc_x = imu_get_acc_x();
+  acc_y = imu_get_acc_y();
+  acc_z = imu_get_acc_z();
+  gyro_x = imu_get_gyro_x();
+  gyro_y = imu_get_gyro_y();
+  gyro_z = imu_get_gyro_z();
 
   Accel_x_raw =  acc_y;
   Accel_y_raw =  acc_x;
@@ -549,7 +287,7 @@ float sensor_read(void)
     if(ToF_bottom_data_ready_flag)
     {
       ToF_bottom_data_ready_flag = 0;
-      dist=tof_range_get(ToF_bottom);
+      dist=tof_bottom_get_range();
       Altitude = (float)dist;
       Alt_control_ok = 1;
       dcnt=0u;
