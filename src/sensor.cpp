@@ -166,7 +166,7 @@ void ahrs_reset(void)
 
 void sensor_init()
 {
-  beep_init();
+  //beep_init();
  
   Wire1.begin(SDA_PIN, SCL_PIN,400000UL);
   if(scan_i2c()==0)
@@ -207,7 +207,6 @@ void sensor_init()
 
 float sensor_read(void)
 {
-  //struct bmi2_sens_data imu_data;
   float acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z;
   float ax, ay, az, gx, gy, gz, acc_norm, rate_norm;
   float filterd_v;
@@ -227,10 +226,7 @@ float sensor_read(void)
   //Y軸：前後（前が正）左肩上がりが回転の正
   //Z軸：上下（上が正）左回りが回転の正
 
-  imu_update();
-
-  //bmi2_get_sensor_data(&imu_data, pBmi270);
-
+  imu_update();//IMUの値を読む前に必ず実行
   acc_x = imu_get_acc_x();
   acc_y = imu_get_acc_y();
   acc_z = imu_get_acc_z();
@@ -247,7 +243,10 @@ float sensor_read(void)
 
   if(Mode > AVERAGE_MODE)
   {
-    Drone_ahrs.updateIMU((Pitch_rate_raw-Pitch_rate_offset)*(float)RAD_TO_DEG, (Roll_rate_raw-Roll_rate_offset)*(float)RAD_TO_DEG, -(Yaw_rate_raw-Yaw_rate_offset)*(float)RAD_TO_DEG, Accel_y_raw, Accel_x_raw, -Accel_z_raw);
+    Drone_ahrs.updateIMU( (Pitch_rate_raw-Pitch_rate_offset)*(float)RAD_TO_DEG, 
+                          (Roll_rate_raw-Roll_rate_offset)*(float)RAD_TO_DEG,
+                         -(Yaw_rate_raw-Yaw_rate_offset)*(float)RAD_TO_DEG,
+                            Accel_y_raw, Accel_x_raw, -Accel_z_raw);
     Roll_angle  =  Drone_ahrs.getPitch()*(float)DEG_TO_RAD;
     Pitch_angle =  Drone_ahrs.getRoll()*(float)DEG_TO_RAD;
     Yaw_angle   = -Drone_ahrs.getYaw()*(float)DEG_TO_RAD;
