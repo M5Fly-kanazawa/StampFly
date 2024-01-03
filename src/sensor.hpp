@@ -73,8 +73,6 @@ float sensor_read(void);
 void sensor_reset_offset(void);
 void sensor_calc_offset_avarage(void);
 void ahrs_reset(void);
-//void tof_init(void);
-//void test_ranging(VL53LX_DEV dev);
 uint8_t  scan_i2c(void);
 
 #endif
