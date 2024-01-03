@@ -227,9 +227,14 @@ float sensor_read(void)
   //Z軸：上下（上が正）左回りが回転の正
 
   imu_update();//IMUの値を読む前に必ず実行
+
   acc_x = imu_get_acc_x();
   acc_y = imu_get_acc_y();
   acc_z = imu_get_acc_z();
+
+  //USBSerial.printf("Loop!\r\n");
+  //USBSerial.flush();
+
   gyro_x = imu_get_gyro_x();
   gyro_y = imu_get_gyro_y();
   gyro_z = imu_get_gyro_z();

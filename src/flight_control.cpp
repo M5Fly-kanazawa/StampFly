@@ -242,6 +242,8 @@ void init_copter(void)
   timerAttachInterrupt(timer, &onTimer, true);
   timerAlarmWrite(timer, 2500, true);
   timerAlarmEnable(timer);
+
+  USBSerial.printf("Finish StampFly init!\r\n");
 }
 
 //Main loop
@@ -252,19 +254,19 @@ void loop_400Hz(void)
   //割り込みにより400Hzで以降のコードが実行
   while(Loop_flag==0);
   Loop_flag = 0;
-
+  
   E_time = micros();
   Old_Elapsed_time = Elapsed_time;
   Elapsed_time = 1e-6*(E_time - S_time);
   Interval_time = Elapsed_time - Old_Elapsed_time;
   Timevalue+=0.0025f;
-  
+
   //Read Sensor Value
   sense_time = sensor_read();
   uint32_t cs_time = micros();
 
   led_drive();
-
+  
   //Begin Mode select
   if (Mode == INIT_MODE)
   {

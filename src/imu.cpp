@@ -66,7 +66,7 @@ float imu_get_acc_y(void)
 
 float imu_get_acc_z(void)
 {
-    lsb_to_mps2(imu_data.acc.z, 8.0, 16)/GRAVITY_EARTH;
+    return lsb_to_mps2(imu_data.acc.z, 8.0, 16)/GRAVITY_EARTH;
 }
 
 float imu_get_gyro_x(void)
