@@ -221,20 +221,18 @@ float sensor_read(void)
   //Y軸：右左（右が正）頭上げが回転の正
   //Z軸：下上（下が正）右回りが回転の正
   //となる様に軸の変換を施しています
-  //MPU6886の座標軸の撮り方は
+  //BMI270の座標軸の撮り方は
   //X軸：右左（右が正）頭上げが回転の正
   //Y軸：前後（前が正）左肩上がりが回転の正
   //Z軸：上下（上が正）左回りが回転の正
 
   imu_update();//IMUの値を読む前に必ず実行
 
+  //Get Acc Data
   acc_x = imu_get_acc_x();
   acc_y = imu_get_acc_y();
   acc_z = imu_get_acc_z();
-
-  //USBSerial.printf("Loop!\r\n");
-  //USBSerial.flush();
-
+  //Get Gyro Data
   gyro_x = imu_get_gyro_x();
   gyro_y = imu_get_gyro_y();
   gyro_z = imu_get_gyro_z();
