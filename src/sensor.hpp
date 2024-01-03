@@ -6,10 +6,7 @@
 #include "pid.hpp"
 #include <INA3221.h>
 #include <MadgwickAHRS.h>
-//#include <bmi270.h>
 #include <common.h>
-//#include <vl53lx_api.h>
-//#include <vl53lx_platform.h>
 #include <stdint.h>
 #include "alt_kalman.hpp"
 #include <driver/spi_master.h>
