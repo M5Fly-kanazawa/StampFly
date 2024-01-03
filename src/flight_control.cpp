@@ -145,15 +145,15 @@ CRGB led_esp[NUM_LEDS];
 CRGB led_onboard[2];
 
 //Altitude control PID gain
-const float alt_kp = 0.1f;
-const float alt_ti = 100.0f;
-const float alt_td = 0.0001f;
+const float alt_kp = 0.5f;
+const float alt_ti = 1000.0f;
+const float alt_td = 0.001f;
 const float alt_eta = 0.125f;
 const float alt_period = 0.0333;
 
 //Altitude Control variables
-const float Thrust0_nominal = 0.555;
-const float z_dot_kp = 0.14f;//0.5f;//12
+const float Thrust0_nominal = 0.57;
+const float z_dot_kp = 0.5f;//0.5f;//12
 const float z_dot_ti = 40.0f;
 const float z_dot_td = 0.0093f;
 const float z_dot_eta = 0.125f;
@@ -481,7 +481,7 @@ float altitude_control(uint8_t reset_flag)
   {
     Alt_control_ok = 0;
     float alt_err = Alt_ref - Altitude2;
-    Z_dot_ref = 0.0;//alt_pid.update(alt_err);
+    Z_dot_ref = alt_pid.update(alt_err);
     float z_dot_err = Z_dot_ref - Alt_velocity;
     u = z_dot_pid.update(z_dot_err);
   }
@@ -496,7 +496,7 @@ void get_command(void)
   //  Thrust_command = 0.0;
   //}
 
-  uint8_t Throttle_control_mode=0;
+  uint8_t Throttle_control_mode=1;
   
 
   //Thrust control
@@ -540,10 +540,10 @@ void get_command(void)
       Thrust0 = Thrust0 + 1.0/(400.0*2);
       if (Thrust0>Thrust0_nominal) Thrust0 = Thrust0_nominal;
       
-      if (Altitude2<Alt_ref) Thrust_command = Thrust_filtered.update(Thrust0 * BATTERY_VOLTAGE);
+      if (Altitude2<Alt_ref) Thrust_command = Thrust0 * BATTERY_VOLTAGE;
       else Alt_flag = 1; 
     }
-    else Thrust_command = Thrust_filtered.update((Thrust0 + altitude_control(0))*BATTERY_VOLTAGE);
+    else Thrust_command = (Thrust0 + altitude_control(0))*BATTERY_VOLTAGE;
     #endif
   }
 
