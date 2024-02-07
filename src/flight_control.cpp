@@ -1,6 +1,7 @@
 #include "flight_control.hpp"
 
 //#define DEBUG
+//#define TEST
 
 //モータPWM出力Pinのアサイン
 //Motor PWM Pin
@@ -183,10 +184,7 @@ void led_drive(void);
 uint8_t judge_mode_change(void);
 uint8_t get_arming_button(void);
 uint8_t get_flip_button(void);
-void set_duty_fr(float duty);
-void set_duty_fl(float duty);
-void set_duty_rr(float duty);
-void set_duty_rl(float duty);
+
 void float2byte(float x, uint8_t* dst);
 void append_data(uint8_t* data , uint8_t* newdata, uint8_t index, uint8_t len);
 void data2log(uint8_t* data_list, float add_data, uint8_t index);
@@ -242,8 +240,15 @@ void init_copter(void)
   timerAttachInterrupt(timer, &onTimer, true);
   timerAlarmWrite(timer, 2500, true);
   timerAlarmEnable(timer);
-
   USBSerial.printf("Finish StampFly init!\r\n");
+
+  #ifdef TEST
+  USBSerial.printf("Start test mode!\r\n");
+  test_init();
+
+  #else
+  USBSerial.printf("Enjoy Flight!\r\n");
+  #endif
 }
 
 //Main loop
@@ -313,9 +318,12 @@ void loop_400Hz(void)
   }
   else if(Mode == PARKING_MODE)
   {
+    #ifdef TEST
+    test_main();
+    #else
     //Judge Mode change
     if( judge_mode_change() == 1)Mode = FLIGHT_MODE;
-
+    
     //Parking
     motor_stop();
     OverG_flag = 0;
@@ -323,6 +331,7 @@ void loop_400Hz(void)
     Thrust0 = 0.0;
     Alt_flag = 0;
     Alt_ref = 0.25f;
+    #endif
 
   }
 
@@ -496,7 +505,7 @@ void get_command(void)
   //  Thrust_command = 0.0;
   //}
 
-  uint8_t Throttle_control_mode=1;
+  uint8_t Throttle_control_mode=0;
   
 
   //Thrust control

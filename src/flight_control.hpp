@@ -8,6 +8,7 @@
 #include "sensor.hpp"
 #include <FastLED.h>
 #include <vl53lx_platform.h>
+#include "test.hpp"
 
 #define BATTERY_VOLTAGE (3.7)
 #define WHITE 0xffffff
@@ -39,8 +40,13 @@
 //グローバル関数の宣言
 void init_copter(void);
 void loop_400Hz(void);
+void set_duty_fr(float duty);
+void set_duty_fl(float duty);
+void set_duty_rr(float duty);
+void set_duty_rl(float duty);
 
 //グローバル変数
 extern uint8_t Mode;
+extern volatile uint8_t Loop_flag;
 
 #endif
