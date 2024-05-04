@@ -1,6 +1,7 @@
 #include "sensor.hpp"
 #include "imu.hpp"
 #include "tof.hpp" 
+#include "flight_control.hpp"
 
 /************ BEEP ************/
 //BeepPWM出力Pinのアサイン
@@ -25,6 +26,7 @@ Alt_kalman EstimatedAltitude;
 
 INA3221 ina3221(INA3221_ADDR40_GND);// Set I2C address to 0x40 (A0 pin -> GND)
 Filter acc_filter;
+Filter az_filter;
 Filter voltage_filter;
 
 //Sensor data
@@ -40,6 +42,7 @@ volatile float Altitude = 0.0f;
 volatile float Altitude2 = 0.0f;
 volatile float Alt_velocity = 0.0f;
 volatile uint8_t Alt_control_ok = 0;
+volatile float Az=0.0;
 volatile uint16_t Offset_counter = 0;
 
 volatile float Voltage;
@@ -202,6 +205,7 @@ void sensor_init()
 
   //Acceleration filter
   //acc_filter.set_parameter(0.005, 0.0025);
+  az_filter.set_parameter(0.15, 0.0025);
   //while(1);
 }
 
@@ -213,9 +217,21 @@ float sensor_read(void)
   static float dp, dq, dr; 
   static uint16_t dcnt=0u;
   uint16_t dist;
+  static float alt_time = 0.0f;
+  static float sensor_time = 0.0f;
+  static float old_alt_time = 0.0f;
+  static uint8_t first_flag = 0;
   const uint8_t interval = 400/30+1;
+  float old_alt=0.0;
+  float old_sensor_time = 0.0;
+  uint32_t st;
+  float sens_interval;
 
-  uint32_t st = micros();
+  st = micros();
+  old_sensor_time = sensor_time;
+  sensor_time = (float)st*1.0e-6;
+  sens_interval = sensor_time - old_sensor_time;
+
   //以下では航空工学の座標軸の取り方に従って
   //X軸：前後（前が正）左肩上がりが回転の正
   //Y軸：右左（右が正）頭上げが回転の正
@@ -262,7 +278,7 @@ float sensor_read(void)
 
   #if 1
   acc_norm = sqrt(Accel_x_raw*Accel_x_raw + Accel_y_raw*Accel_y_raw + Accel_z_raw*Accel_z_raw);
-  Acc_norm = acc_filter.update(acc_norm);
+  Acc_norm = acc_filter.update(acc_norm ,Control_period);
   if (Acc_norm>3.8) 
   {
     OverG_flag = 1;
@@ -272,7 +288,7 @@ float sensor_read(void)
 
   //Battery voltage check 
   Voltage = ina3221.getVoltage(INA3221_CH2);
-  filterd_v = voltage_filter.update(Voltage);
+  filterd_v = voltage_filter.update(Voltage, Control_period);
 
   if(Under_voltage_flag != UNDER_VOLTAGE_COUNT){
     if (filterd_v < POWER_LIMIT) Under_voltage_flag ++;
@@ -282,6 +298,10 @@ float sensor_read(void)
   uint32_t mt=micros();
 
   //Altitude
+  if(Mode>AVERAGE_MODE)
+  Az = az_filter.update(-(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset), sens_interval);
+  //USBSerial.printf("Sens_interval=%f,Az=%f, rawdata=%f\n\r", sens_interval, Az, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset));
+
   #if 1
   //Get Altitude (30Hz)
   if (dcnt>interval)
@@ -290,13 +310,28 @@ float sensor_read(void)
     {
       ToF_bottom_data_ready_flag = 0;
       dist=tof_bottom_get_range();
-      Altitude = (float)dist;
+      old_alt = Altitude;
+      Altitude = (float)dist/1000.0;
+
+      //外れ値除去
+      if(dist==9999)Altitude = old_alt;
+      else if(dist==8191)Altitude = old_alt;
+      else if(dist==0)Altitude = old_alt;
+      //else if (Altitude - old_alt >  0.1)Altitude = old_alt;
+      //else if (Altitude - old_alt < -0.1)Altitude = old_alt;
+      
       Alt_control_ok = 1;
       dcnt=0u;
 
-      EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
+      old_alt_time = alt_time;
+      alt_time = micros()*1.0e-6;
+      float h = alt_time - old_alt_time;
+      if(first_flag == 1) EstimatedAltitude.update(Altitude, Az, h);
+      else first_flag = 1;
       Altitude2 = EstimatedAltitude.Altitude;
       Alt_velocity = EstimatedAltitude.Velocity;
+      //USBSerial.printf("%9.6f, %9.6f\r\n",Elapsed_time, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset));
+      //USBSerial.printf("%9.6f, %9.6f, %9.6f, %9.6f, %9.6f\r\n",Elapsed_time,Altitude/1000.0,  Altitude2, Alt_velocity,-(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset));
     }
   }
   else dcnt++;
@@ -320,7 +355,6 @@ float sensor_read(void)
   //USBSerial.printf("Sensor read %f %f %f\n\r", (mt-st)*1.0e-6, (et-mt)*1e-6, (et-st)*1.0e-6);
 
   return (et-st)*1.0e-6;
-
 }
 
 #if 0

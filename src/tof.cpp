@@ -94,28 +94,38 @@ void tof_init(void)
 uint16_t tof_range_get(VL53LX_DEV dev)
 {
   uint16_t range;
+  uint16_t range_min;
+  uint16_t range_max;
+  
   VL53LX_MultiRangingData_t MultiRangingData;
   VL53LX_MultiRangingData_t *pMultiRangingData=&MultiRangingData;
 
+  //uint32_t start_time = micros();
   VL53LX_GetMultiRangingData(dev, pMultiRangingData);
+  //uint32_t end_time = micros();
+  //USBSerial.printf("ToF Time%f\n", (float)(end_time - start_time)*1.0e-6);
   uint8_t no_of_object_found=pMultiRangingData->NumberOfObjectsFound;
-  if(no_of_object_found!=0)
+
+  range_min = 10000;
+  range_max = 0;
+  if(no_of_object_found==0)
   {
-    range = MultiRangingData.RangeData[0].RangeMilliMeter;
-    #if 0
+    range_min = 9999;
+    range_max = 0;
+  }
+  else
+  {
     for(uint8_t j=0;j<no_of_object_found;j++){
-          if(j!=0)USBSerial.printf("\n\r                     ");
-          USBSerial.printf("%d %5d %2.2f %2.2f ",
-                  MultiRangingData.RangeData[j].RangeStatus,
-                  MultiRangingData.RangeData[j].RangeMilliMeter,
-                  MultiRangingData.RangeData[j].SignalRateRtnMegaCps/65536.0,
-                  MultiRangingData.RangeData[j].AmbientRateRtnMegaCps/65536.0);
-    }
-    #endif
-        
+                  if(MultiRangingData.RangeData[j].RangeStatus==VL53LX_RANGESTATUS_RANGE_VALID)
+                  {
+                    range = MultiRangingData.RangeData[j].RangeMilliMeter;
+                    if(range_min > range) range_min = range;
+                    if(range_max < range) range_max = range;
+                  }
+    }     
   }
   VL53LX_ClearInterruptAndStartMeasurement(dev);
-  return range;
+  return range_max;
 }
 
 void tof_test_ranging(VL53LX_DEV dev)
