@@ -24,7 +24,7 @@ class PID
     void i_reset(void);
     void printGain(void);
     void set_error(float err);
-    float update(float err);
+    float update(float err, float h);
 };
 
 class Filter
@@ -40,7 +40,7 @@ class Filter
         float T,
         float h);
     void reset(void);
-    float update(float u);
+    float update(float u, float h);
 };
 
 #endif

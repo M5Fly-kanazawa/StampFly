@@ -1,27 +1,42 @@
 #include "sensor.hpp"
+#include "imu.hpp"
+#include "tof.hpp" 
+#include "flight_control.hpp"
 
-MPU6886 IMU;
 Madgwick Drone_ahrs;
 Alt_kalman EstimatedAltitude;
 
-// Set I2C address to 0x40 (A0 pin -> GND)
-INA3221 ina3221(INA3221_ADDR40_GND);
+INA3221 ina3221(INA3221_ADDR40_GND);// Set I2C address to 0x40 (A0 pin -> GND)
 Filter acc_filter;
+Filter az_filter;
 Filter voltage_filter;
-Adafruit_VL53L0X tof = Adafruit_VL53L0X();
+Filter raw_ax_filter;
+Filter raw_ay_filter;
+Filter raw_az_filter;
+Filter raw_az_d_filter;
+Filter raw_gx_filter;
+Filter raw_gy_filter;
+Filter raw_gz_filter;
+Filter alt_filter;
 
 //Sensor data
 volatile float Roll_angle=0.0f, Pitch_angle=0.0f, Yaw_angle=0.0f;
 volatile float Roll_rate, Pitch_rate, Yaw_rate;
 volatile float Roll_rate_offset=0.0f, Pitch_rate_offset=0.0f, Yaw_rate_offset=0.0f;
-volatile float Accel_z;
+volatile float Accel_z_d;
 volatile float Accel_z_offset=0.0f;
 volatile float Accel_x_raw,Accel_y_raw,Accel_z_raw;
+volatile float Accel_x,Accel_y,Accel_z;
 volatile float Roll_rate_raw,Pitch_rate_raw,Yaw_rate_raw;
 volatile float Mx,My,Mz,Mx0,My0,Mz0,Mx_ave,My_ave,Mz_ave;
 volatile float Altitude = 0.0f;
 volatile float Altitude2 = 0.0f;
 volatile float Alt_velocity = 0.0f;
+volatile uint8_t Alt_control_ok = 0;
+volatile float Az=0.0;
+volatile float Az_bias=0.0;
+int16_t deltaX,deltaY;
+
 volatile uint16_t Offset_counter = 0;
 
 volatile float Voltage;
@@ -29,14 +44,16 @@ float Acc_norm=0.0f;
 //quat_t Quat;
 float Over_g=0.0f, Over_rate=0.0f;
 uint8_t OverG_flag = 0;
-volatile uint8_t Under_voltage_flag = 0; 
+volatile uint8_t Under_voltage_flag = 0;
+//volatile uint8_t ToF_bottom_data_ready_flag;
+volatile uint16_t Range=1000;
 
-uint8_t init_i2c()
+uint8_t scan_i2c()
 {
-  Wire1.begin(SDA_PIN, SCL_PIN,400000UL);
   USBSerial.println ("I2C scanner. Scanning ...");
+  delay(50);
   byte count = 0;
-  for (short i = 0; i < 256; i++)
+  for (uint8_t i = 1; i < 127; i++)
   {
     Wire1.beginTransmission (i);          // Begin I2C transmission Address (i)
     if (Wire1.endTransmission () == 0)  // Receive 0 = success (ACK response) 
@@ -44,7 +61,7 @@ uint8_t init_i2c()
       USBSerial.print ("Found address: ");
       USBSerial.print (i, DEC);
       USBSerial.print (" (0x");
-      USBSerial.print (i, HEX);     // PCF8574 7 bit address
+      USBSerial.print (i, HEX); 
       USBSerial.println (")");
       count++;
     }
@@ -53,77 +70,6 @@ uint8_t init_i2c()
   USBSerial.print (count, DEC);        // numbers of devices
   USBSerial.println (" device(s).");
   return count;
-}
-
-uint8_t mpu6886_byte_read(uint8_t reg_addr)
-{
-  uint8_t data;
-  Wire1.beginTransmission (MPU6886_ADDRESS);
-  Wire1.write(reg_addr);
-  Wire1.endTransmission();
-  Wire1.requestFrom(MPU6886_ADDRESS, 1);
-  data = Wire1.read();
-  return data;
-}
-
-void mpu6886_byte_write(uint8_t reg_addr, uint8_t data)
-{
-  Wire1.beginTransmission (MPU6886_ADDRESS);
-  Wire1.write(reg_addr);
-  Wire1.write(data);
-  Wire1.endTransmission();
-}
-
-void imu_init(void)
-{
-  //Cutoff frequency
-  //filter_config Gyro Accel
-  //0 250    218.1 log140　Bad
-  //1 176    218.1 log141　Bad
-  //2 92     99.0  log142 Bad これはヨーガカクカクする log256
-  //3 41     44.8  log143 log188　Good! log257
-  //4 20     21.2
-  //5 10     10.2
-  //6 5      5.1
-  //7 3281   420.0
-  uint8_t data;
-  const uint8_t filter_config = 2;//(今の所2はノイズが多くてダメ、log188は3)
-
-  //Mdgwick filter 実験
-  // filter_config=0において実施
-  //beta =0 次第に角度増大（角速度の積分のみに相当する）
-  //beta=0.5
-
-  IMU.Init();
-  //IMUのデフォルトI2C周波数が100kHzなので400kHzに上書き
-
-  MPU6886 imu;
-
-  //Wire1.begin(SDA_PIN, SCL_PIN, 400000UL);
-
- //F_CHOICE_B
-  data = mpu6886_byte_read(MPU6886_GYRO_CONFIG);
-  USBSerial.printf("GYRO_CONFIG %d\r\n", data);
-  mpu6886_byte_write(MPU6886_GYRO_CONFIG, data & 0b11111100);
-  data = mpu6886_byte_read(MPU6886_GYRO_CONFIG);
-  USBSerial.printf("Update GYRO_CONFIG %d\r\n", data);
-
-  //Gyro
-  //DLPG_CFG
-  data = mpu6886_byte_read(MPU6886_CONFIG);
-  USBSerial.printf("CONFIG %d\r\n", data);
-  mpu6886_byte_write(MPU6886_CONFIG, (data&0b11111100)|filter_config);
-  data = mpu6886_byte_read(MPU6886_CONFIG);
-  USBSerial.printf("Update CONFIG %d\r\n", data);
-
-  //Accel
-  //ACCEL_FCHOCE_B & A_DLPF_CFG
-  data = mpu6886_byte_read(MPU6886_ACCEL_CONFIG2);
-  USBSerial.printf("ACCEL_CONFIG2 %d\r\n", data);
-  mpu6886_byte_write(MPU6886_ACCEL_CONFIG2, (data & 0b11110111) | filter_config);
-  data = mpu6886_byte_read(MPU6886_ACCEL_CONFIG2);
-  USBSerial.printf("Update ACCEL_CONFIG2 %d\r\n", data);
-
 }
 
 void sensor_reset_offset(void)
@@ -145,71 +91,12 @@ void sensor_calc_offset_avarage(void)
   Offset_counter++;
 }
 
-void sensor_init()
+void test_voltage(void)
 {
-  if(init_i2c()==0)
+  for (uint16_t i=0; i<1000; i++)
   {
-    USBSerial.printf("No I2C device!\r\n");
-    USBSerial.printf("Can not boot AtomFly2.\r\n");
-    while(1);
+    USBSerial.printf("Voltage[%03d]:%f\n\r", i, ina3221.getVoltage(INA3221_CH2));
   }
-
-  imu_init();
-  tof_init();
-  //test_rangefinder();
-  Drone_ahrs.begin(400.0);
-  ina3221.begin(&Wire1);
-  ina3221.reset();  
-  //voltage_filter.set_parameter(0.005, 0.0025);
-  //Acceleration filter
-  acc_filter.set_parameter(0.005, 0.0025);
-
-}
-
-void tof_init(void)
-{
-    tof.begin(0x29, false, &Wire1);
-    tof.configSensor(tof.VL53L0X_SENSE_LONG_RANGE);
-    tof.setDeviceMode(VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
-    tof.setMeasurementTimingBudgetMicroSeconds(33000);
-    tof.startRangeContinuous(33);
-    while(tof.isRangeComplete()==0);    
-    USBSerial.printf("ToF OK Distance=%d\n", tof.readRangeResult());
-    //tof.clearInterruptMask();
-    for(uint8_t i=0; i<10; i++)
-    {
-      uint64_t st,et;
-      uint8_t answer=tof.isRangeComplete();
-      while(answer==0){
-        answer=tof.isRangeComplete();
-      }
-      
-      st=micros();
-      uint16_t range = tof.readRangeResult();
-      et=micros();
-
-      USBSerial.printf("%f %d\n\r",(et-st)*1.0e-6, range);
-    }
-    //USBSerial.printf("\n\r");
-
-}
-
-void start_mesure_distance(void)
-{
-  tof.startMeasurement();
-}
-
-uint8_t is_finish_ranging(void)
-{
-  return tof.isRangeComplete();
-}
-
-uint16_t get_distance(void)
-{
-  uint16_t range;
-  range = tof.readRangeResult();
-  //tof.clearInterruptMask();
-  return  range;
 }
 
 void ahrs_reset(void)
@@ -217,108 +104,231 @@ void ahrs_reset(void)
   Drone_ahrs.reset();
 }
 
+void sensor_init()
+{
+  //beep_init();
+ 
+  Wire1.begin(SDA_PIN, SCL_PIN,400000UL);
+  if(scan_i2c()==0)
+  {
+    USBSerial.printf("No I2C device!\r\n");
+    USBSerial.printf("Can not boot AtomFly2.\r\n");
+    while(1);
+  }
+
+  tof_init();
+  imu_init();
+  Drone_ahrs.begin(400.0);
+  ina3221.begin(&Wire1);
+  ina3221.reset();  
+  voltage_filter.set_parameter(0.005, 0.0025);
+  
+  uint16_t cnt=0;
+  while(cnt<3)
+  {
+    if(ToF_bottom_data_ready_flag)
+    {
+      ToF_bottom_data_ready_flag = 0;
+      cnt++;
+      USBSerial.printf("%d %d\n\r", cnt, tof_bottom_get_range());
+    }
+  }
+  delay(10);
+ 
+  //Acceleration filter
+  acc_filter.set_parameter(0.005, 0.0025);
+
+  raw_ax_filter.set_parameter(0.003, 0.0025);
+  raw_ay_filter.set_parameter(0.003, 0.0025);
+  raw_az_filter.set_parameter(0.003, 0.0025);
+  
+  raw_gx_filter.set_parameter(0.003, 0.0025);
+  raw_gy_filter.set_parameter(0.003, 0.0025);
+  raw_gz_filter.set_parameter(0.003, 0.0025);
+
+  raw_az_d_filter.set_parameter(0.1, 0.0025);//alt158
+  az_filter.set_parameter(0.1, 0.0025);//alt158
+  alt_filter.set_parameter(0.01, 0.0025);
+  
+}
+
 float sensor_read(void)
 {
+  float acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z;
   float ax, ay, az, gx, gy, gz, acc_norm, rate_norm;
   float filterd_v;
   static float dp, dq, dr; 
   static uint16_t dcnt=0u;
-  uint16_t dist;
+  static uint16_t dist=0;
+  int16_t deff;
+  static uint16_t old_dist[4] = {0};
+  static float alt_time = 0.0f;
+  static float sensor_time = 0.0f;
+  static float old_alt_time = 0.0f;
+  static uint8_t first_flag = 0;
   const uint8_t interval = 400/30+1;
+  float old_sensor_time = 0.0;
+  uint32_t st;
+  float sens_interval;
+  float h;
+  static float opt_interval =0.0;
 
-  uint32_t st = micros();
+  st = micros();
+  old_sensor_time = sensor_time;
+  sensor_time = (float)st*1.0e-6;
+  sens_interval = sensor_time - old_sensor_time;
+  opt_interval = opt_interval + sens_interval;
+
   //以下では航空工学の座標軸の取り方に従って
   //X軸：前後（前が正）左肩上がりが回転の正
   //Y軸：右左（右が正）頭上げが回転の正
   //Z軸：下上（下が正）右回りが回転の正
   //となる様に軸の変換を施しています
-  //MPU6886の座標軸の撮り方は
+  //BMI270の座標軸の撮り方は
   //X軸：右左（右が正）頭上げが回転の正
   //Y軸：前後（前が正）左肩上がりが回転の正
   //Z軸：上下（上が正）左回りが回転の正
 
-  IMU.getAccelData(&ax, &ay, &az);
-  IMU.getGyroData(&gx, &gy, &gz);
+  //Get IMU raw data
+  imu_update();//IMUの値を読む前に必ず実行
+  acc_x = imu_get_acc_x();
+  acc_y = imu_get_acc_y();
+  acc_z = imu_get_acc_z();
+  gyro_x = imu_get_gyro_x();
+  gyro_y = imu_get_gyro_y();
+  gyro_z = imu_get_gyro_z();
 
-  Accel_x_raw = ay;
-  Accel_y_raw = ax;
-  Accel_z_raw =-az;
-  Roll_rate_raw  =  gy*(float)DEG_TO_RAD;
-  Pitch_rate_raw =  gx*(float)DEG_TO_RAD;
-  Yaw_rate_raw   = -gz*(float)DEG_TO_RAD;
+  //USBSerial.printf("%9.6f %9.6f %9.6f\n\r", Elapsed_time, sens_interval, acc_z);
+
+  //Axis Transform
+  Accel_x_raw =  acc_y;
+  Accel_y_raw =  acc_x;
+  Accel_z_raw = -acc_z;
+  Roll_rate_raw  =  gyro_y;
+  Pitch_rate_raw =  gyro_x;
+  Yaw_rate_raw   = -gyro_z;
 
   if(Mode > AVERAGE_MODE)
   {
-    Drone_ahrs.updateIMU((Pitch_rate_raw-Pitch_rate_offset)*(float)RAD_TO_DEG, (Roll_rate_raw-Roll_rate_offset)*(float)RAD_TO_DEG, -(Yaw_rate_raw-Yaw_rate_offset)*(float)RAD_TO_DEG, Accel_y_raw, Accel_x_raw, -Accel_z_raw);
+    Accel_x    = raw_ax_filter.update(Accel_x_raw, Interval_time);
+    Accel_y    = raw_ay_filter.update(Accel_y_raw , Interval_time);
+    Accel_z    = raw_az_filter.update(Accel_z_raw , Interval_time);
+    Accel_z_d  = raw_az_d_filter.update(Accel_z_raw - Accel_z_offset, Interval_time);
+
+    Roll_rate  = raw_gx_filter.update(Roll_rate_raw - Roll_rate_offset, Interval_time);
+    Pitch_rate = raw_gy_filter.update(Pitch_rate_raw - Pitch_rate_offset, Interval_time);
+    Yaw_rate   = raw_gz_filter.update(Yaw_rate_raw - Yaw_rate_offset, Interval_time);
+
+    Drone_ahrs.updateIMU( (Pitch_rate)*(float)RAD_TO_DEG, 
+                          (Roll_rate)*(float)RAD_TO_DEG,
+                         -(Yaw_rate)*(float)RAD_TO_DEG,
+                            Accel_y, Accel_x, -Accel_z);
     Roll_angle  =  Drone_ahrs.getPitch()*(float)DEG_TO_RAD;
     Pitch_angle =  Drone_ahrs.getRoll()*(float)DEG_TO_RAD;
     Yaw_angle   = -Drone_ahrs.getYaw()*(float)DEG_TO_RAD;
+
+
+    //for debug
+    //USBSerial.printf("%6.3f %7.4f %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f\n\r", 
+    //  Elapsed_time, Interval_time, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z);
+
+    //Get Altitude (30Hz)
+    Az = az_filter.update(-Accel_z_d, sens_interval);
+
+    if (dcnt>interval)
+    {
+      if(ToF_bottom_data_ready_flag)
+      {
+        dcnt=0u;
+        old_alt_time = alt_time;
+        alt_time = micros()*1.0e-6;
+        h = alt_time - old_alt_time;
+        ToF_bottom_data_ready_flag = 0;
+
+        //距離の値の更新
+        //old_dist[0] = dist;
+        dist=tof_bottom_get_range();
+                
+        //外れ値処理
+        deff = dist - old_dist[1];
+        if ( deff > 500 )
+        {
+          dist = old_dist[1] + (old_dist[1] - old_dist[2])/2;
+        }
+        else if ( deff < -500 )
+        {
+          dist = old_dist[1] + (old_dist[1] - old_dist[3])/2;
+        }
+        else
+        {
+          old_dist[3] = old_dist[2];
+          old_dist[2] = old_dist[1];
+          old_dist[1] = dist;
+        }
+        //USBSerial.printf("%9.6f, %9.6f, %9.6f, %9.6f, %9.6f\r\n",Elapsed_time,Altitude/1000.0,  Altitude2, Alt_velocity,-(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset));
+      }
+    }
+    else dcnt++;
+
+    Altitude = alt_filter.update((float)dist/1000.0, Interval_time);
+
+    //Alt_control_ok = 1;
+    if(first_flag == 1) EstimatedAltitude.update(Altitude, Az, Interval_time);
+    else first_flag = 1;
+    Altitude2 = EstimatedAltitude.Altitude;
+    Alt_velocity = EstimatedAltitude.Velocity;
+    Az_bias = EstimatedAltitude.Bias;
+    //USBSerial.printf("Sens=%f Az=%f Altitude=%f Velocity=%f Bias=%f\n\r",Altitude, Az, Altitude2, Alt_velocity, Az_bias);
+
+    //float Roll_angle = Roll_angle;
+    //float tht = Pitch_angle;
+    //float Yaw_angle = Yaw_angle;
+    //float sRoll_angle = sin(Roll_angle);
+    //float cRoll = cos(Roll_angle);
+  // float stht = sin(tht);
+    //float cPitch = cos(Pitch_angle);
+    //float sYaw_angle = sin(Yaw_angle);
+    //float sYaw_angle = cos(Yaw_angle);
+
+    //float r33 =  cRoll*cPitch;
+    //Altitude2 = r33 * Altitude;
+    //EstimatedAltitude.update(Altitude2, r33*Accel_z_raw)
+
   }
 
-  Roll_rate  = Roll_rate_raw - Roll_rate_offset;
-  Pitch_rate = Pitch_rate_raw - Pitch_rate_offset;
-  Yaw_rate   = Yaw_rate_raw - Yaw_rate_offset;
-  Accel_z = Accel_z_raw - Accel_z_offset;
-
-  #if 1
-  acc_norm = sqrt(Accel_x_raw*Accel_x_raw + Accel_y_raw*Accel_y_raw + Accel_z_raw*Accel_z_raw);
-  Acc_norm = acc_filter.update(acc_norm);
-  if (Acc_norm>9.0) 
+  //Accel fail safe
+  acc_norm = sqrt(Accel_x*Accel_x + Accel_y*Accel_y + Accel_z_d*Accel_z_d);
+  Acc_norm = acc_filter.update(acc_norm ,Control_period);
+  if (Acc_norm>2.0) 
   {
     OverG_flag = 1;
     if (Over_g == 0.0)Over_g = acc_norm;
   }
-  #endif
 
   //Battery voltage check 
   Voltage = ina3221.getVoltage(INA3221_CH2);
-  filterd_v = voltage_filter.update(Voltage);
+  filterd_v = voltage_filter.update(Voltage, Control_period);
 
   if(Under_voltage_flag != UNDER_VOLTAGE_COUNT){
     if (filterd_v < POWER_LIMIT) Under_voltage_flag ++;
     else Under_voltage_flag = 0;
     if ( Under_voltage_flag > UNDER_VOLTAGE_COUNT) Under_voltage_flag = UNDER_VOLTAGE_COUNT;
   }
-  uint32_t mt=micros();
-  //Altitude
-  
-  #if 1
-  //Get Altitude (30Hz)
-  if (dcnt>interval)
+  /*
+  if (opt_interval > 0.1)
   {
-    if(is_finish_ranging())
-    {
-      dist = tof.readRangeResult();
-      Altitude = (float)dist;
-      dcnt=0u;
-    }
-    EstimatedAltitude.update(Altitude/1000.0, -(Accel_z_raw - Accel_z_offset)*9.81/(-Accel_z_offset) );
-    Altitude2 = EstimatedAltitude.Altitude;
-    Alt_velocity = EstimatedAltitude.Velocity;
+    opt_interval = 0.0;
+    flow.readMotionCount(&deltaX, &deltaY);
+    USBSerial.printf("%f %d %d %f\r\n", Elapsed_time, deltaX, deltaY, Accel_z_raw);
   }
-  else dcnt++;
-  #endif
-
-  //float Roll_angle = Roll_angle;
-  //float tht = Pitch_angle;
-  //float Yaw_angle = Yaw_angle;
-  //float sRoll_angle = sin(Roll_angle);
-  //float cRoll = cos(Roll_angle);
- // float stht = sin(tht);
-  //float cPitch = cos(Pitch_angle);
-  //float sYaw_angle = sin(Yaw_angle);
-  //float sYaw_angle = cos(Yaw_angle);
-
-  //float r33 =  cRoll*cPitch;
-  //Altitude2 = r33 * Altitude;
-  //EstimatedAltitude.update(Altitude2, r33*Accel_z_raw)
+  */
 
   uint32_t et =micros();
   //USBSerial.printf("Sensor read %f %f %f\n\r", (mt-st)*1.0e-6, (et-mt)*1e-6, (et-st)*1.0e-6);
 
   return (et-st)*1.0e-6;
-
 }
+
 
 #if 0
 
@@ -350,5 +360,3 @@ float x = r13*range;
 float y = r23*range;
 float z = r33*range;
 #endif
-
-
