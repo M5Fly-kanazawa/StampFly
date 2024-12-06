@@ -31,7 +31,7 @@
 #define _VL53LX_PLATFORM_H_
 
 #include <vl53lx_platform_log.h>
-#include "VL53Lx_ll_def.h"
+#include "vl53lx_ll_def.h"
 
 #define VL53LX_IPP_API
 #include <vl53lx_platform_ipp_imports.h>
